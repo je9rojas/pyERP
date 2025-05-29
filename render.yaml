@@ -1,0 +1,11 @@
+# render.yaml
+services:
+  - type: web
+    name: pyerp-fastapi
+    env: python
+    buildCommand: ""
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port 10000
+    envVars:
+      - key: MONGO_URI
+        value: <TU_URI_DE_MONGODB>
+    plan: free
