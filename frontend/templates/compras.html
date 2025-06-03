@@ -1,0 +1,59 @@
+<!-- frontend/templates/compras.html -->
+{% extends "base.html" %}
+
+{% block title %}Gestión de Compras{% endblock %}
+
+{% block content %}
+<h1>Gestión de Compras</h1>
+
+<!-- Formulario para registrar o editar compra -->
+<h2>Registrar Compra</h2>
+<form id="purchaseForm">
+    <input type="hidden" id="purchase_id"> <!-- Oculto para modo edición -->
+
+    <label for="product_id">ID del producto:</label>
+    <input type="text" id="product_id" required><br>
+
+    <label for="quantity">Cantidad comprada:</label>
+    <input type="number" id="quantity" required min="1"><br>
+
+    <label for="price">Precio unitario:</label>
+    <input type="number" id="price" step="0.01" required min="0"><br>
+
+    <button type="submit">Guardar compra</button>
+</form>
+
+<div id="message" style="margin-top: 1rem;"></div>
+
+<hr>
+
+<!-- Filtros de búsqueda -->
+<h2>Buscar Compras</h2>
+<input type="text" id="busquedaProductoCompra" placeholder="Buscar por ID de producto">
+<input type="number" id="busquedaCantidadCompra" placeholder="Buscar por cantidad">
+<input type="number" id="busquedaPrecioCompra" placeholder="Buscar por precio">
+
+<hr>
+
+<!-- Listado de compras -->
+<h2>Listado de Compras</h2>
+<table id="tablaCompras" border="1">
+    <thead>
+        <tr>
+            <th>Producto</th>
+            <th>Cantidad</th>
+            <th>Precio</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        <!-- Se llena dinámicamente con JS -->
+    </tbody>
+</table>
+
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<!-- Script JS -->
+<script src="/static/js/compras.js"></script>
+{% endblock %}

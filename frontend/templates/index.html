@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Inicio - Registro de Producto{% endblock %}
+
+{% block content %}
+<h1>Registro de Producto</h1>
+
+<form id="productForm">
+    <label for="name">Nombre:</label>
+    <input type="text" id="name" required><br>
+
+    <label for="description">Descripción:</label>
+    <input type="text" id="description"><br>
+
+    <label for="stock">Stock inicial:</label>
+    <input type="number" id="stock" required min="0"><br>
+
+    <label for="price">Precio:</label>
+    <input type="number" step="0.01" id="price" required min="0"><br>
+
+    <button type="submit">Guardar producto</button>
+</form>
+
+<div id="message" style="margin-top: 1rem;"></div>
+
+<script src="/static/js/ventas.js"></script>
+{% endblock %}
