@@ -1,16 +1,15 @@
 # backend/routes/purchases.py
-
 from fastapi import APIRouter, HTTPException, Body
 from pydantic import BaseModel
 from backend.database import db
 from bson import ObjectId
+from typing import List
 
-router = APIRouter()
+router = APIRouter()  # Eliminado el prefix aquí
 
 # -------------------------------
 # 📅 Modelos
 # -------------------------------
-
 class PurchaseCreate(BaseModel):
     product_id: str  # Este es el código del producto, como 'AP001'
     quantity: int
@@ -22,16 +21,14 @@ class PurchaseOut(PurchaseCreate):
 # -------------------------------
 # 🔄 Ruta de prueba
 # -------------------------------
-
-@router.get("/")
+@router.get("/test")
 async def test_purchases():
     return {"message": "Purchases route works"}
 
 # -------------------------------
 # ✅ Crear compra
 # -------------------------------
-
-@router.post("/")
+@router.post("/", response_model=dict)
 async def create_purchase(purchase: PurchaseCreate = Body(...)):
     if purchase.quantity <= 0:
         raise HTTPException(status_code=400, detail="Cantidad inválida")
@@ -69,8 +66,7 @@ async def create_purchase(purchase: PurchaseCreate = Body(...)):
 # -------------------------------
 # 📋 Listar compras
 # -------------------------------
-
-@router.get("/list", response_model=list[PurchaseOut])
+@router.get("/list", response_model=List[PurchaseOut])
 async def list_purchases():
     purchases_cursor = db["purchases"].find()
     purchases = []
@@ -83,7 +79,6 @@ async def list_purchases():
 # -------------------------------
 # ❌ Eliminar compra
 # -------------------------------
-
 @router.delete("/{purchase_id}")
 async def delete_purchase(purchase_id: str):
     compra = await db["purchases"].find_one({"_id": ObjectId(purchase_id)})
@@ -104,7 +99,6 @@ async def delete_purchase(purchase_id: str):
 # -------------------------------
 # ✏️ Editar compra
 # -------------------------------
-
 @router.put("/{purchase_id}")
 async def update_purchase(purchase_id: str, updated: PurchaseCreate):
     original = await db["purchases"].find_one({"_id": ObjectId(purchase_id)})
@@ -146,8 +140,7 @@ async def update_purchase(purchase_id: str, updated: PurchaseCreate):
 # -------------------------------
 # 🔍 Buscar compras
 # -------------------------------
-
-@router.get("/search/")
+@router.get("/search")
 async def search_purchases(query: str = ""):
     filtro = {"product_id": {"$regex": query, "$options": "i"}}
     cursor = db["purchases"].find(filtro)

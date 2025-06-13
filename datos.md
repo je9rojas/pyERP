@@ -27,3 +27,4 @@ uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 
 .\venv\Scripts\activate
 
+(venv) PS D:\Projects\pyERP> uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000  

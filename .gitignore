@@ -8,7 +8,7 @@ __pycache__/
 *.pyd
 
 # Ignorar archivos de configuración local
-.env
+#.env
 
 # Ignorar archivos de editor (VSCode, PyCharm, etc)
 .vscode/
