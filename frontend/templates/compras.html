@@ -4,56 +4,64 @@
 {% block title %}Gestión de Compras{% endblock %}
 
 {% block content %}
-<h1>Gestión de Compras</h1>
+<main>
+    <h1>Gestión de Compras</h1>
 
-<!-- Formulario para registrar o editar compra -->
-<h2>Registrar Compra</h2>
-<form id="purchaseForm">
-    <input type="hidden" id="purchase_id"> <!-- Oculto para modo edición -->
+    <!-- 📦 Formulario para registrar o editar compra -->
+    <section>
+        <h2>Registrar Compra</h2>
+        <form id="purchaseForm">
+            <input type="hidden" id="purchase_id"> <!-- Para modo edición -->
 
-    <label for="product_id">ID del producto:</label>
-    <input type="text" id="product_id" required><br>
+            <label for="product_id">Código del Producto:</label>
+            <input type="text" id="product_id" required><br>
 
-    <label for="quantity">Cantidad comprada:</label>
-    <input type="number" id="quantity" required min="1"><br>
+            <label for="quantity">Cantidad Comprada:</label>
+            <input type="number" id="quantity" required min="1"><br>
 
-    <label for="price">Precio unitario:</label>
-    <input type="number" id="price" step="0.01" required min="0"><br>
+            <label for="price">Precio Unitario:</label>
+            <input type="number" id="price" step="0.01" required min="0"><br>
 
-    <button type="submit">Guardar compra</button>
-</form>
+            <button type="submit">Guardar Compra</button>
+        </form>
 
-<div id="message" style="margin-top: 1rem;"></div>
+        <div id="message" style="margin-top: 1rem;"></div>
+    </section>
 
-<hr>
+    <hr>
 
-<!-- Filtros de búsqueda -->
-<h2>Buscar Compras</h2>
-<input type="text" id="busquedaProductoCompra" placeholder="Buscar por ID de producto">
-<input type="number" id="busquedaCantidadCompra" placeholder="Buscar por cantidad">
-<input type="number" id="busquedaPrecioCompra" placeholder="Buscar por precio">
+    <!-- 🔍 Filtros de búsqueda -->
+    <section>
+        <h2>Buscar Compras</h2>
+        <input type="text" id="busquedaProductoCompra" placeholder="Buscar por código">
+        <input type="number" id="busquedaCantidadCompra" placeholder="Buscar por cantidad">
+        <input type="number" id="busquedaPrecioCompra" placeholder="Buscar por precio">
+    </section>
 
-<hr>
+    <hr>
 
-<!-- Listado de compras -->
-<h2>Listado de Compras</h2>
-<table id="tablaCompras" border="1">
-    <thead>
-        <tr>
-            <th>Producto</th>
-            <th>Cantidad</th>
-            <th>Precio</th>
-            <th>Acciones</th>
-        </tr>
-    </thead>
-    <tbody>
-        <!-- Se llena dinámicamente con JS -->
-    </tbody>
-</table>
+    <!-- 📋 Tabla de compras -->
+    <section>
+        <h2>Listado de Compras</h2>
+        <table id="tablaCompras" border="1" style="width: 100%; text-align: left;">
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                    <th>Precio</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Se llena dinámicamente con JS -->
+            </tbody>
+        </table>
+    </section>
+</main>
 
-<!-- SweetAlert2 -->
+<!-- 🧪 SweetAlert2 CDN -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-<!-- Script JS -->
+<!-- ✅ Script correcto desde frontend/js/compras.js -->
 <script src="/static/js/compras.js"></script>
 {% endblock %}

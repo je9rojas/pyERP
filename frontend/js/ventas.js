@@ -1,190 +1,149 @@
-// frontend/js/ventas.js
-
+// 📁 frontend/js/ventas.js
 document.addEventListener("DOMContentLoaded", () => {
-    const ventasTbody = document.querySelector("#tablaVentas tbody");
-    const form = document.getElementById("ventaForm"); // capturamos el formulario
+  const form = document.getElementById("ventaForm");
+  const tablaVentas = document.getElementById("tablaVentas").querySelector("tbody");
+  const messageDiv = document.getElementById("message");
 
-    // Mostrar mensajes al usuario
-    function showMessage(text, isError = false) {
-        const msg = document.getElementById("message");
-        msg.textContent = text;
-        msg.style.color = isError ? "red" : "green";
-    }
+  const inputBusquedaID = document.getElementById("busquedaProductoVenta");
+  const inputBusquedaCantidad = document.getElementById("busquedaCantidadVenta");
+  const inputBusquedaPrecio = document.getElementById("busquedaPrecioVenta");
 
-    // ✅ Evento para registrar nueva venta
-    form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        showMessage("");
+  // 🔄 Inicializar
+  fetchVentas();
 
-        const product_id = document.getElementById("product_id").value.trim();
-        const quantity = parseInt(document.getElementById("quantity").value);
-        const price = parseFloat(document.getElementById("price").value);
+  // 📌 Registrar venta
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-        if (!product_id || isNaN(quantity) || isNaN(price)) {
-            showMessage("Datos inválidos", true);
-            return;
-        }
+    const data = {
+      product_id: document.getElementById("product_id").value.trim(),
+      quantity: parseInt(document.getElementById("quantity").value),
+      price: parseFloat(document.getElementById("price").value)
+    };
 
-        const venta = { product_id, quantity, price };
-
-        try {
-            const res = await fetch("/api/sales/", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(venta)
-            });
-
-            if (res.ok) {
-                showMessage("Venta registrada con éxito.");
-                form.reset(); // limpia el formulario
-                await cargarVentas(); // recarga la tabla
-            } else {
-                const error = await res.json();
-                showMessage("Error al registrar: " + error.detail, true);
-            }
-        } catch (err) {
-            showMessage("Error de red: " + err.message, true);
-        }
+    const res = await fetch("/api/sales/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
     });
 
-    // Cargar y mostrar las ventas desde la API
-    async function cargarVentas() {
-        try {
-            const res = await fetch("/api/sales/");
-            const data = await res.json();
-
-            ventasTbody.innerHTML = "";
-
-            data.forEach(venta => {
-                const fila = document.createElement("tr");
-
-                fila.innerHTML = `
-                    <td>${venta.product_id}</td>
-                    <td>${venta.quantity}</td>
-                    <td>${venta.price.toFixed(2)}</td>
-                    <td>
-                        <button class="editarBtn" data-id="${venta._id}">Editar</button>
-                        <button class="eliminarBtn" data-id="${venta._id}">Eliminar</button>
-                    </td>
-                `;
-
-                ventasTbody.appendChild(fila);
-            });
-        } catch (err) {
-            showMessage("Error al cargar ventas: " + err.message, true);
-        }
+    const result = await res.json();
+    if (res.ok) {
+      Swal.fire("✅ Éxito", result.message, "success");
+      form.reset();
+      fetchVentas();
+    } else {
+      Swal.fire("❌ Error", result.detail, "error");
     }
+  });
 
-    // Eliminar venta
-    ventasTbody.addEventListener("click", async (e) => {
-        if (e.target.classList.contains("eliminarBtn")) {
-            const id = e.target.dataset.id;
+  // 🔍 Búsquedas
+  [inputBusquedaID, inputBusquedaCantidad, inputBusquedaPrecio].forEach(input => {
+    input.addEventListener("input", fetchVentas);
+  });
 
-            const confirm = await Swal.fire({
-                title: "¿Eliminar esta venta?",
-                text: "No podrás deshacer esta acción",
-                icon: "warning",
-                showCancelButton: true,
-                confirmButtonText: "Sí, eliminar",
-                cancelButtonText: "Cancelar"
-            });
+  // 📦 Obtener ventas
+  async function fetchVentas() {
+    let query = inputBusquedaID.value.trim();
+    let url = query ? `/api/sales/search/?query=${query}` : "/api/sales/list";
 
-            if (confirm.isConfirmed) {
-                try {
-                    const res = await fetch(`/api/sales/${id}`, { method: "DELETE" });
+    try {
+      const res = await fetch(url);
+      const ventas = await res.json();
+      if (!Array.isArray(ventas)) throw new Error("Formato inesperado");
 
-                    if (res.ok) {
-                        showMessage("Venta eliminada correctamente.");
-                        cargarVentas();
-                    } else {
-                        showMessage("Error al eliminar venta", true);
-                    }
-                } catch (err) {
-                    showMessage("Error de red: " + err.message, true);
-                }
-            }
+      tablaVentas.innerHTML = "";
+      ventas.forEach(venta => {
+        // Filtrado adicional en cliente
+        const filtrarCantidad = inputBusquedaCantidad.value.trim();
+        const filtrarPrecio = inputBusquedaPrecio.value.trim();
+
+        if (
+          (filtrarCantidad && venta.quantity != parseInt(filtrarCantidad)) ||
+          (filtrarPrecio && venta.price != parseFloat(filtrarPrecio))
+        ) {
+          return;
         }
+
+        renderVenta(venta);
+      });
+
+    } catch (err) {
+      console.error("Error al cargar ventas:", err);
+      messageDiv.textContent = "❌ Error al cargar ventas";
+    }
+  }
+
+  // 🧱 Mostrar fila
+  function renderVenta(venta) {
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+      <td>${venta.product_code}</td>
+      <td>${venta.name}</td>
+      <td>${venta.quantity}</td>
+      <td>${venta.price.toFixed(2)}</td>
+      <td>
+        <button onclick="editarVenta('${venta.id}', ${venta.quantity}, ${venta.price}, '${venta.product_id}')">✏️</button>
+        <button onclick="eliminarVenta('${venta.id}')">🗑️</button>
+      </td>
+    `;
+    tablaVentas.appendChild(tr);
+  }
+
+  // Exponer funciones globales
+  window.editarVenta = async function(id, cantidadActual, precioActual, productoID) {
+    const { value: valores } = await Swal.fire({
+      title: "✏️ Editar Venta",
+      html: `
+        <input id="swal-cantidad" class="swal2-input" type="number" min="1" value="${cantidadActual}">
+        <input id="swal-precio" class="swal2-input" type="number" min="0" step="0.01" value="${precioActual}">
+      `,
+      preConfirm: () => [
+        parseInt(document.getElementById("swal-cantidad").value),
+        parseFloat(document.getElementById("swal-precio").value)
+      ]
     });
 
-    // Editar venta
-    ventasTbody.addEventListener("click", async (e) => {
-        if (e.target.classList.contains("editarBtn")) {
-            const id = e.target.dataset.id;
+    if (!valores) return;
 
-            const fila = e.target.closest("tr");
-            const product_id = fila.children[0].textContent;
-            const quantity = fila.children[1].textContent;
-            const price = fila.children[2].textContent;
+    const [nuevaCantidad, nuevoPrecio] = valores;
 
-            const { value: formValues } = await Swal.fire({
-                title: "Editar Venta",
-                html: `
-                    <input id="edit_product_id" class="swal2-input" value="${product_id}" placeholder="ID producto">
-                    <input id="edit_quantity" class="swal2-input" type="number" value="${quantity}" placeholder="Cantidad">
-                    <input id="edit_price" class="swal2-input" type="number" step="0.01" value="${price}" placeholder="Precio">
-                `,
-                focusConfirm: false,
-                showCancelButton: true,
-                confirmButtonText: "Guardar cambios",
-                preConfirm: () => {
-                    return {
-                        product_id: document.getElementById("edit_product_id").value.trim(),
-                        quantity: parseInt(document.getElementById("edit_quantity").value),
-                        price: parseFloat(document.getElementById("edit_price").value)
-                    };
-                }
-            });
-
-            if (formValues) {
-                try {
-                    const res = await fetch(`/api/sales/${id}`, {
-                        method: "PUT",
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify(formValues)
-                    });
-
-                    if (res.ok) {
-                        showMessage("Venta actualizada con éxito.");
-                        cargarVentas();
-                    } else {
-                        const error = await res.json();
-                        showMessage("Error al actualizar: " + error.detail, true);
-                    }
-                } catch (err) {
-                    showMessage("Error de red: " + err.message, true);
-                }
-            }
-        }
+    const res = await fetch(`/api/sales/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ product_id: productoID, quantity: nuevaCantidad, price: nuevoPrecio })
     });
 
-    // Búsqueda avanzada
-    function filtrarVentasAvanzado() {
-        const filtroProducto = document.getElementById("busquedaProductoVenta").value.toLowerCase();
-        const filtroCantidad = document.getElementById("busquedaCantidadVenta").value;
-        const filtroPrecio = document.getElementById("busquedaPrecioVenta").value;
-
-        const filas = document.querySelectorAll("#tablaVentas tbody tr");
-
-        filas.forEach(fila => {
-            const idProducto = fila.children[0].textContent.toLowerCase();
-            const cantidad = fila.children[1].textContent;
-            const precio = fila.children[2].textContent;
-
-            const coincideProducto = idProducto.includes(filtroProducto);
-            const coincideCantidad = filtroCantidad === "" || cantidad === filtroCantidad;
-            const coincidePrecio = filtroPrecio === "" || precio === filtroPrecio;
-
-            fila.style.display = (coincideProducto && coincideCantidad && coincidePrecio) ? "" : "none";
-        });
+    const result = await res.json();
+    if (res.ok) {
+      Swal.fire("✅ Actualizado", result.message, "success");
+      fetchVentas();
+    } else {
+      Swal.fire("❌ Error", result.detail || "Error al actualizar", "error");
     }
+  };
 
-    // Eventos para los filtros de búsqueda
-    document.getElementById("busquedaProductoVenta")?.addEventListener("input", filtrarVentasAvanzado);
-    document.getElementById("busquedaCantidadVenta")?.addEventListener("input", filtrarVentasAvanzado);
-    document.getElementById("busquedaPrecioVenta")?.addEventListener("input", filtrarVentasAvanzado);
+  window.eliminarVenta = async function(id) {
+    const confirm = await Swal.fire({
+      title: "¿Eliminar venta?",
+      text: "Esta acción es irreversible",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Sí, eliminar",
+      cancelButtonText: "Cancelar"
+    });
 
-    // Cargar ventas al iniciar
-    cargarVentas();
+    if (!confirm.isConfirmed) return;
+
+    const res = await fetch(`/api/sales/${id}`, { method: "DELETE" });
+    const result = await res.json();
+
+    if (res.ok) {
+      Swal.fire("✅ Eliminada", result.message, "success");
+      fetchVentas();
+    } else {
+      Swal.fire("❌ Error", result.detail || "Error al eliminar", "error");
+    }
+  };
 });

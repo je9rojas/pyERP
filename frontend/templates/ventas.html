@@ -1,58 +1,55 @@
-<!-- frontend/templates/ventas.html -->
+<!-- 📁 frontend/templates/ventas.html -->
 {% extends "base.html" %}
 
 {% block title %}Gestión de Ventas{% endblock %}
 
 {% block content %}
-<h1>Gestión de Ventas</h1>
+<h1>📦 Gestión de Ventas</h1>
 
-<!-- Formulario para registrar una nueva venta -->
-<h2>Registrar Venta</h2>
-<form id="ventaForm">
-    <label for="product_id">ID del Producto:</label>
-    <input type="text" id="product_id" required><br>
+<section>
+  <h2>➕ Registrar Venta</h2>
+  <form id="ventaForm">
+    <label for="product_id">🆔 ID del Producto:</label>
+    <input type="text" id="product_id" name="product_id" required><br>
 
-    <label for="quantity">Cantidad:</label>
-    <input type="number" id="quantity" required min="1"><br>
+    <label for="quantity">📦 Cantidad:</label>
+    <input type="number" id="quantity" name="quantity" min="1" required><br>
 
-    <label for="price">Precio:</label>
-    <input type="number" id="price" step="0.01" required min="0"><br>
+    <label for="price">💰 Precio:</label>
+    <input type="number" id="price" name="price" step="0.01" min="0" required><br>
 
     <button type="submit">Registrar Venta</button>
-</form>
-
-<!-- Mensajes de éxito o error -->
-<div id="message" style="margin-top: 1rem;"></div>
-
-<hr>
-
-<!-- Filtros de búsqueda avanzada -->
-<h2>Buscar Ventas</h2>
-<input type="text" id="busquedaProductoVenta" placeholder="Buscar por ID de producto">
-<input type="number" id="busquedaCantidadVenta" placeholder="Buscar por cantidad">
-<input type="number" id="busquedaPrecioVenta" placeholder="Buscar por precio">
+  </form>
+  <div id="message" style="margin-top: 1rem;"></div>
+</section>
 
 <hr>
 
-<!-- Tabla para listar las ventas registradas -->
-<h2>Listado de Ventas</h2>
-<table id="tablaVentas" border="1">
+<section>
+  <h2>🔍 Buscar Ventas</h2>
+  <input type="text" id="busquedaProductoVenta" placeholder="ID de producto">
+  <input type="number" id="busquedaCantidadVenta" placeholder="Cantidad">
+  <input type="number" id="busquedaPrecioVenta" placeholder="Precio">
+</section>
+
+<hr>
+
+<section>
+  <h2>📋 Listado de Ventas</h2>
+  <table id="tablaVentas" border="1">
     <thead>
-        <tr>
-            <th>Producto</th>
-            <th>Cantidad</th>
-            <th>Precio</th>
-            <th>Acciones</th>
-        </tr>
+      <tr>
+        <th>🆔 Código</th>
+        <th>📛 Nombre</th>
+        <th>📦 Cantidad</th>
+        <th>💰 Precio</th>
+        <th>⚙️ Acciones</th>
+      </tr>
     </thead>
-    <tbody>
-        <!-- Aquí se cargarán dinámicamente las filas con JavaScript -->
-    </tbody>
-</table>
+    <tbody></tbody>
+  </table>
+</section>
 
-<!-- Incluir SweetAlert2 -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-<!-- Script de funcionalidad -->
-<script src="/static/js/ventas.js"></script>
+<script src="/js/ventas.js"></script>
 {% endblock %}

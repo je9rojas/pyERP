@@ -2,15 +2,15 @@ from backend.database import db
 from backend.models.product import Product
 from bson import ObjectId
 
-collection = db["products"]
+async def create_product(product: Product):
+    result = await db["products"].insert_one(product.dict())
+    return {"id": str(result.inserted_id)}
 
-async def create_product(product: Product) -> dict:
-    result = await collection.insert_one(product.dict())
-    return {**product.dict(), "_id": str(result.inserted_id)}
-
-async def list_products() -> list:
+async def list_products():
+    cursor = db["products"].find()
     products = []
-    async for prod in collection.find():
-        prod["_id"] = str(prod["_id"])
-        products.append(prod)
+    async for p in cursor:
+        p["id"] = str(p["_id"])
+        del p["_id"]
+        products.append(p)
     return products

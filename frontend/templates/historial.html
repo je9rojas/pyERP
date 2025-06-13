@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Historial de Stock</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2rem;
+    }
+    h1 {
+      text-align: center;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+    th, td {
+      padding: 0.75rem;
+      border: 1px solid #ccc;
+      text-align: left;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    .negative {
+      color: red;
+    }
+    .positive {
+      color: green;
+    }
+  </style>
+</head>
+<body>
+  <h1>📦 Historial de Stock</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th>Acción</th>
+        <th>Cantidad</th>
+        <th>Precio</th>
+      </tr>
+    </thead>
+    <tbody id="historial-body">
+      <!-- Las filas se llenarán por JS -->
+    </tbody>
+  </table>
+
+  <script>
+    async function cargarHistorial() {
+      const res = await fetch("http://localhost:8000/stock-history");
+      const historial = await res.json();
+
+      const tbody = document.getElementById("historial-body");
+      tbody.innerHTML = "";
+
+      for (const item of historial) {
+        const tr = document.createElement("tr");
+
+        const producto = document.createElement("td");
+        producto.textContent = item.product_name || item.product_id;
+
+        const accion = document.createElement("td");
+        accion.textContent = item.action;
+
+        const cantidad = document.createElement("td");
+        cantidad.textContent = item.quantity;
+        cantidad.className = item.quantity < 0 ? "negative" : "positive";
+
+        const precio = document.createElement("td");
+        precio.textContent = `$${item.price.toFixed(2)}`;
+
+        tr.appendChild(producto);
+        tr.appendChild(accion);
+        tr.appendChild(cantidad);
+        tr.appendChild(precio);
+
+        tbody.appendChild(tr);
+      }
+    }
+
+    window.onload = cargarHistorial;
+  </script>
+</body>
+</html>

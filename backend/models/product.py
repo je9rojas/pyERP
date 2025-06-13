@@ -1,8 +1,11 @@
+#backend/models/product.py
+
 from pydantic import BaseModel, Field
 from typing import Optional
 from bson import ObjectId
 
 class Product(BaseModel):
+    code: str  # <--- Agregado
     name: str
     description: Optional[str] = None
     stock: int = 0
