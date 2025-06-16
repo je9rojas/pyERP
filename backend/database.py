@@ -1,12 +1,11 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
 import os
-import asyncio
 import logging
 
 # Configurar logging
 logger = logging.getLogger("uvicorn")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 load_dotenv()
 
@@ -18,49 +17,30 @@ DB_NAME = os.getenv("MONGO_DB_NAME", "erp_db")
 client = None
 db = None
 
+def get_database():
+    """Devuelve la instancia de la base de datos"""
+    global db
+    return db
+
+def is_database_connected():
+    """Verifica si la conexión a la base de datos está activa"""
+    global client
+    return client is not None
+
 async def connect_to_mongodb():
     """Establece conexión con MongoDB y verifica la conexión"""
     global client, db
     try:
-        logger.debug(f"MONGO_URI: {MONGO_URI}")
-        logger.debug(f"DB_NAME: {DB_NAME}")
-        
-        logger.info(f"Conectando a MongoDB en: {MONGO_URI}")
-        client = AsyncIOMotorClient(
-            MONGO_URI,
-            serverSelectionTimeoutMS=5000,
-            connectTimeoutMS=10000,
-            socketTimeoutMS=10000
-        )
-        
-        # Forzar una operación simple para verificar la conexión
-        logger.debug("Obteniendo server_info()...")
-        server_info = await client.server_info()
-        logger.info(f"Conexión exitosa. Versión de MongoDB: {server_info['version']}")
-        
+        logger.info(f"Conectando a MongoDB: {MONGO_URI}")
+        client = AsyncIOMotorClient(MONGO_URI)
         db = client[DB_NAME]
-        logger.info(f"Usando base de datos: {DB_NAME}")
         
-        # Verificar colección de productos
-        logger.debug("Listando colecciones...")
-        coll_names = await db.list_collection_names()
-        logger.info(f"Colecciones disponibles: {coll_names}")
-        
-        if "products" in coll_names:
-            logger.debug("Contando productos...")
-            products_count = await db.products.count_documents({})
-            logger.info(f"Total de productos: {products_count}")
-            
-            if products_count > 0:
-                logger.debug("Obteniendo primer producto...")
-                first_product = await db.products.find_one()
-                logger.info(f"Primer producto: {first_product}")
-        else:
-            logger.warning("La colección 'products' no existe")
-            
+        # Verificación rápida de conexión
+        await client.server_info()
+        logger.info(f"Conexión exitosa a MongoDB. Base de datos: {DB_NAME}")
         return True
     except Exception as e:
-        logger.exception(f"Error crítico de conexión a MongoDB: {str(e)}")
+        logger.error(f"Error de conexión a MongoDB: {str(e)}")
         return False
 
 async def close_mongodb_connection():
@@ -69,8 +49,3 @@ async def close_mongodb_connection():
     if client:
         client.close()
         logger.info("Conexión a MongoDB cerrada")
-
-# Nueva función para obtener la instancia de la base de datos
-def get_database():
-    """Devuelve la instancia de la base de datos"""
-    return db
