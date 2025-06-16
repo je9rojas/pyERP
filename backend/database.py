@@ -22,6 +22,9 @@ def get_database():
     global db
     return db
 
+# Alias para compatibilidad con código existente
+get_db = get_database
+
 def is_database_connected():
     """Verifica si la conexión a la base de datos está activa"""
     global client

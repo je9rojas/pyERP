@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, HTTPException, Body
 from pydantic import BaseModel
-from backend.database import db
+from backend.database import get_db
 from bson import ObjectId
 from datetime import datetime
 from typing import List

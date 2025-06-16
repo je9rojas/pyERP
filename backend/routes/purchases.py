@@ -1,17 +1,19 @@
 # backend/routes/purchases.py
 from fastapi import APIRouter, HTTPException, Body
 from pydantic import BaseModel
-from backend.database import db
+from backend.database import get_database
 from bson import ObjectId
 from typing import List
+import logging
 
-router = APIRouter()  # Eliminado el prefix aquí
+router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # -------------------------------
 # 📅 Modelos
 # -------------------------------
 class PurchaseCreate(BaseModel):
-    product_id: str  # Este es el código del producto, como 'AP001'
+    product_id: str
     quantity: int
     price: float
 
@@ -30,6 +32,10 @@ async def test_purchases():
 # -------------------------------
 @router.post("/", response_model=dict)
 async def create_purchase(purchase: PurchaseCreate = Body(...)):
+    db = get_database()
+    if db is None:  # Corregido: verificar explícitamente contra None
+        raise HTTPException(status_code=500, detail="Database not available")
+    
     if purchase.quantity <= 0:
         raise HTTPException(status_code=400, detail="Cantidad inválida")
     if purchase.price < 0:
@@ -64,23 +70,47 @@ async def create_purchase(purchase: PurchaseCreate = Body(...)):
     }
 
 # -------------------------------
-# 📋 Listar compras
+# 📋 Listar compras (FIXED)
 # -------------------------------
 @router.get("/list", response_model=List[PurchaseOut])
 async def list_purchases():
-    purchases_cursor = db["purchases"].find()
-    purchases = []
-    async for purchase in purchases_cursor:
-        purchase["id"] = str(purchase["_id"])
-        del purchase["_id"]
-        purchases.append(purchase)
-    return purchases
+    try:
+        db = get_database()
+        if db is None:  # Corregido: verificar explícitamente contra None
+            raise HTTPException(status_code=500, detail="Database not available")
+        
+        purchases_cursor = db["purchases"].find()
+        purchases = []
+        async for purchase in purchases_cursor:
+            if purchase is None:
+                logger.warning("Documento nulo encontrado")
+                continue
+                
+            if "_id" not in purchase:
+                logger.error(f"Documento sin _id: {purchase}")
+                continue
+                
+            purchase_data = dict(purchase)
+            purchase_data["id"] = str(purchase_data["_id"])
+            del purchase_data["_id"]
+            purchases.append(purchase_data)
+        return purchases
+    except Exception as e:
+        logger.exception(f"Error crítico al listar compras: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error interno del servidor: {str(e)}"
+        )
 
 # -------------------------------
 # ❌ Eliminar compra
 # -------------------------------
 @router.delete("/{purchase_id}")
 async def delete_purchase(purchase_id: str):
+    db = get_database()
+    if db is None:  # Corregido: verificar explícitamente contra None
+        raise HTTPException(status_code=500, detail="Database not available")
+    
     compra = await db["purchases"].find_one({"_id": ObjectId(purchase_id)})
     if not compra:
         raise HTTPException(status_code=404, detail="Compra no encontrada")
@@ -101,6 +131,10 @@ async def delete_purchase(purchase_id: str):
 # -------------------------------
 @router.put("/{purchase_id}")
 async def update_purchase(purchase_id: str, updated: PurchaseCreate):
+    db = get_database()
+    if db is None:  # Corregido: verificar explícitamente contra None
+        raise HTTPException(status_code=500, detail="Database not available")
+    
     original = await db["purchases"].find_one({"_id": ObjectId(purchase_id)})
     if not original:
         raise HTTPException(status_code=404, detail="Compra no encontrada")
@@ -138,15 +172,31 @@ async def update_purchase(purchase_id: str, updated: PurchaseCreate):
     return {"message": "Compra actualizada con éxito"}
 
 # -------------------------------
-# 🔍 Buscar compras
+# 🔍 Buscar compras (FIXED)
 # -------------------------------
 @router.get("/search")
 async def search_purchases(query: str = ""):
-    filtro = {"product_id": {"$regex": query, "$options": "i"}}
-    cursor = db["purchases"].find(filtro)
-    results = []
-    async for item in cursor:
-        item["id"] = str(item["_id"])
-        del item["_id"]
-        results.append(item)
-    return results
+    try:
+        db = get_database()
+        if db is None:  # Corregido: verificar explícitamente contra None
+            raise HTTPException(status_code=500, detail="Database not available")
+        
+        filtro = {"product_id": {"$regex": query, "$options": "i"}}
+        cursor = db["purchases"].find(filtro)
+        results = []
+        async for item in cursor:
+            if item is None:
+                continue
+                
+            if "_id" in item:
+                item_data = dict(item)
+                item_data["id"] = str(item_data["_id"])
+                del item_data["_id"]
+                results.append(item_data)
+        return results
+    except Exception as e:
+        logger.exception(f"Error en búsqueda de compras: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error en búsqueda: {str(e)}"
+        )
