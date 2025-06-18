@@ -20,10 +20,9 @@ db = None
 def get_database():
     """Devuelve la instancia de la base de datos"""
     global db
+    if db is None:
+        raise RuntimeError("Database not initialized")
     return db
-
-# Alias para compatibilidad con código existente
-get_db = get_database
 
 def is_database_connected():
     """Verifica si la conexión a la base de datos está activa"""

@@ -23,8 +23,9 @@ async def shutdown_event():
     logger.info("Deteniendo aplicación...")
     await close_mongodb_connection()
 
-# Configuración para servir archivos estáticos
-app.mount("/static", StaticFiles(directory="frontend"), name="static")
+# Cambiar la configuración de archivos estáticos
+app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
+
 templates = Jinja2Templates(directory="frontend/templates")
 
 # Middleware para manejar errores

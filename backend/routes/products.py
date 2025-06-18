@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from backend.database import get_db, is_database_connected
+from backend.database import get_database, is_database_connected
 import logging
 
 # Configurar logger
