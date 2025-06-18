@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Registro de Productos - Sistema ERP{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="my-4">📦 Registro de Productos</h1>
+        <a href="/inventario" class="btn btn-outline-primary">
+            <i class="bi bi-boxes me-1"></i> Ver Inventario
+        </a>
+    </div>
+    
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Datos del Producto</h5>
+        </div>
+        <div class="card-body">
+            <form id="productForm">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="productCode" class="form-label">Código</label>
+                        <input type="text" class="form-control" id="productCode" required>
+                        <div class="form-text">Identificador único del producto</div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label for="productName" class="form-label">Nombre</label>
+                        <input type="text" class="form-control" id="productName" required>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="productPrice" class="form-label">Precio</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="productPrice" step="0.01" min="0" required>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label for="productStock" class="form-label">Stock Inicial</label>
+                        <input type="number" class="form-control" id="productStock" min="0" required>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="productDescription" class="form-label">Descripción</label>
+                    <textarea class="form-control" id="productDescription" rows="3"></textarea>
+                    <div class="form-text">Opcional: detalles adicionales sobre el producto</div>
+                </div>
+                
+                <div class="d-flex justify-content-between">
+                    <button type="reset" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle me-1"></i> Limpiar
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-1"></i> Registrar Producto
+                    </button>
+                </div>
+                
+                <div id="formFeedback" class="form-text mt-3"></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/productos.js"></script>
+{% endblock %}

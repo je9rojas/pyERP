@@ -1,3 +1,5 @@
+// 📁 frontend/static/js/historial.js
+
 document.addEventListener("DOMContentLoaded", () => {
   const tablaHistorial = document.querySelector("#tablaHistorial tbody");
 

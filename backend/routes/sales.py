@@ -15,15 +15,19 @@ logger = logging.getLogger(__name__)
 # 🧾 Modelos de datos (entrada y salida)
 # ======================================
 
-class SaleCreate(BaseModel):
+class SaleItem(BaseModel):
     product_id: str
     quantity: int
     price: float
 
+class SaleCreate(BaseModel):
+    client: str = "Consumidor final"
+    items: List[SaleItem]
+    total: float
+
 class SaleOut(SaleCreate):
     id: str
-    product_code: str
-    name: str
+    date: datetime
 
 # ===========================
 # 🔁 Ruta de prueba
@@ -37,29 +41,31 @@ async def test_sales():
 # ✅ Crear una nueva venta (CORREGIDO)
 # ===========================
 
-@router.post("/")
+@router.post("/", response_model=SaleOut)
 async def create_sale(sale: SaleCreate = Body(...)):
     # Obtener la base de datos
     db = get_database()
     if db is None:
         raise HTTPException(status_code=500, detail="Base de datos no disponible")
     
-    if sale.quantity <= 0:
-        raise HTTPException(status_code=400, detail="Cantidad inválida")
-    if sale.price < 0:
-        raise HTTPException(status_code=400, detail="Precio inválido")
+    # Validar cada ítem
+    for item in sale.items:
+        if item.quantity <= 0:
+            raise HTTPException(status_code=400, detail=f"Cantidad inválida para el producto {item.product_id}")
+        if item.price < 0:
+            raise HTTPException(status_code=400, detail=f"Precio inválido para el producto {item.product_id}")
 
-    # Buscar el producto - CORRECCIÓN: Usar notación de diccionario
-    product = await db["products"].find_one({"code": sale.product_id})
-    if not product:
-        raise HTTPException(status_code=404, detail="Producto no encontrado")
-    
-    # Verificar stock - CORRECCIÓN: Acceder directamente al campo
-    if "stock" not in product or product["stock"] < sale.quantity:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Stock insuficiente. Disponible: {product.get('stock', 0)}"
-        )
+        # Buscar el producto
+        product = await db["products"].find_one({"code": item.product_id})
+        if not product:
+            raise HTTPException(status_code=404, detail=f"Producto {item.product_id} no encontrado")
+        
+        # Verificar stock
+        if "stock" not in product or product["stock"] < item.quantity:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Stock insuficiente para {item.product_id}. Disponible: {product.get('stock', 0)}"
+            )
 
     # Crear documento de venta
     sale_data = sale.dict()
@@ -67,26 +73,38 @@ async def create_sale(sale: SaleCreate = Body(...)):
     
     # Insertar en la colección 'sales'
     result = await db["sales"].insert_one(sale_data)
+    
+    if not result.inserted_id:
+        logger.error("Fallo al insertar venta, sin ID retornado")
+        raise HTTPException(status_code=500, detail="Error al crear la venta")
 
-    # Actualizar stock del producto
-    await db["products"].update_one(
-        {"code": sale.product_id},
-        {"$inc": {"stock": -sale.quantity}}
-    )
+    # Actualizar stock para cada producto
+    for item in sale.items:
+        # Actualizar stock del producto
+        await db["products"].update_one(
+            {"code": item.product_id},
+            {"$inc": {"stock": -item.quantity}}
+        )
 
-    # Registrar en historial
-    await db["stock_history"].insert_one({
-        "product_id": sale.product_id,
-        "change": -sale.quantity,
-        "reason": "venta",
-        "date": datetime.utcnow()
-    })
+        # Registrar en historial
+        await db["stock_history"].insert_one({
+            "product_id": item.product_id,
+            "change": -item.quantity,
+            "reason": "venta",
+            "date": datetime.utcnow()
+        })
 
-    return {
-        "message": "✅ Venta registrada con éxito",
-        "id": str(result.inserted_id),
-        "sale": sale_data
-    }
+    # Obtener la venta recién creada para devolverla
+    new_sale = await db["sales"].find_one({"_id": result.inserted_id})
+    if not new_sale:
+        logger.error(f"Venta creada pero no encontrada: {result.inserted_id}")
+        raise HTTPException(status_code=500, detail="Venta creada pero no encontrada")
+    
+    # Convertir ObjectId a string
+    new_sale["id"] = str(new_sale["_id"])
+    new_sale.pop("_id", None)
+    
+    return new_sale
 
 # ===========================
 # 📋 Listar todas las ventas
@@ -102,16 +120,17 @@ async def list_sales():
     cursor = db["sales"].find().sort("date", -1)
 
     async for venta in cursor:
-        producto = await db["products"].find_one({"code": venta["product_id"]})
-        ventas.append({
-            "id": str(venta["_id"]),
-            "product_id": venta["product_id"],
-            "product_code": venta["product_id"],
-            "name": producto["name"] if producto else "Desconocido",
-            "quantity": venta["quantity"],
-            "price": venta["price"],
-            "date": venta.get("date", venta.get("_id").generation_time)
-        })
+        # Convertir ObjectId a string
+        venta["id"] = str(venta["_id"])
+        venta.pop("_id", None)
+        
+        # Obtener información de productos para cada ítem
+        for item in venta["items"]:
+            producto = await db["products"].find_one({"code": item["product_id"]})
+            item["product_name"] = producto["name"] if producto else "Desconocido"
+            item["product_code"] = item["product_id"]
+        
+        ventas.append(venta)
 
     return ventas
 
@@ -134,26 +153,33 @@ async def delete_sale(sale_id: str):
     if not venta:
         raise HTTPException(status_code=404, detail="Venta no encontrada")
 
-    producto = await db["products"].find_one({"code": venta["product_id"]})
-    if not producto:
-        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    # Revertir stock para cada ítem
+    for item in venta["items"]:
+        producto = await db["products"].find_one({"code": item["product_id"]})
+        if not producto:
+            logger.warning(f"Producto no encontrado al revertir venta: {item['product_id']}")
+            continue
+
+        # Revertir stock
+        await db["products"].update_one(
+            {"code": item["product_id"]},
+            {"$inc": {"stock": item["quantity"]}}
+        )
+
+        # Registrar en historial
+        await db["stock_history"].insert_one({
+            "product_id": item["product_id"],
+            "change": item["quantity"],
+            "reason": "reversión venta",
+            "date": datetime.utcnow()
+        })
 
     # Eliminar venta
-    await db["sales"].delete_one({"_id": object_id})
-
-    # Revertir stock
-    await db["products"].update_one(
-        {"code": venta["product_id"]},
-        {"$inc": {"stock": venta["quantity"]}}
-    )
-
-    # Registrar en historial
-    await db["stock_history"].insert_one({
-        "product_id": venta["product_id"],
-        "change": venta["quantity"],
-        "reason": "reversión venta",
-        "date": datetime.utcnow()
-    })
+    delete_result = await db["sales"].delete_one({"_id": object_id})
+    
+    if delete_result.deleted_count == 0:
+        logger.error(f"Error al eliminar venta: {sale_id}")
+        raise HTTPException(status_code=500, detail="Error al eliminar la venta")
 
     return {"message": "✅ Venta eliminada correctamente"}
 
@@ -161,7 +187,7 @@ async def delete_sale(sale_id: str):
 # ✏️ Actualizar una venta y el stock
 # ====================================
 
-@router.put("/{sale_id}")
+@router.put("/{sale_id}", response_model=SaleOut)
 async def update_sale(sale_id: str, updated: SaleCreate):
     db = get_database()
     if db is None:
@@ -172,52 +198,72 @@ async def update_sale(sale_id: str, updated: SaleCreate):
     except:
         raise HTTPException(status_code=400, detail="ID inválido")
     
-    if updated.quantity <= 0:
-        raise HTTPException(status_code=400, detail="Cantidad inválida")
-    if updated.price < 0:
-        raise HTTPException(status_code=400, detail="Precio inválido")
+    # Validar cada ítem
+    for item in updated.items:
+        if item.quantity <= 0:
+            raise HTTPException(status_code=400, detail=f"Cantidad inválida para el producto {item.product_id}")
+        if item.price < 0:
+            raise HTTPException(status_code=400, detail=f"Precio inválido para el producto {item.product_id}")
 
     venta = await db["sales"].find_one({"_id": object_id})
     if not venta:
         raise HTTPException(status_code=404, detail="Venta no encontrada")
 
-    producto = await db["products"].find_one({"code": updated.product_id})
-    if not producto:
-        raise HTTPException(status_code=404, detail="Producto no encontrado")
-
-    # Calcular diferencia
-    diferencia = updated.quantity - venta["quantity"]
-
-    # Verificar stock si se aumenta la cantidad
-    if diferencia > 0:
-        stock_actual = producto.get("stock", 0)
-        if stock_actual < diferencia:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Stock insuficiente. Disponible: {stock_actual}"
-            )
+    # Calcular diferencias por producto
+    diferencias = {}
+    for old_item in venta["items"]:
+        pid = old_item["product_id"]
+        diferencias[pid] = diferencias.get(pid, 0) - old_item["quantity"]
+    
+    for new_item in updated.items:
+        pid = new_item.product_id
+        diferencias[pid] = diferencias.get(pid, 0) + new_item.quantity
+        
+        # Verificar stock si se aumenta la cantidad
+        if diferencias[pid] > 0:
+            producto = await db["products"].find_one({"code": pid})
+            if not producto:
+                raise HTTPException(status_code=404, detail=f"Producto {pid} no encontrado")
+            
+            stock_actual = producto.get("stock", 0)
+            if stock_actual < diferencias[pid]:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Stock insuficiente para {pid}. Disponible: {stock_actual}"
+                )
 
     # Actualizar venta
+    updated_data = updated.dict()
+    updated_data["date"] = venta.get("date", datetime.utcnow())
+    
     await db["sales"].update_one(
         {"_id": object_id},
-        {"$set": updated.dict()}
+        {"$set": updated_data}
     )
 
-    # Actualizar stock
-    await db["products"].update_one(
-        {"code": updated.product_id},
-        {"$inc": {"stock": -diferencia}}
-    )
+    # Actualizar stock y registrar en historial
+    for pid, diferencia in diferencias.items():
+        if diferencia != 0:
+            # Actualizar stock
+            await db["products"].update_one(
+                {"code": pid},
+                {"$inc": {"stock": -diferencia}}
+            )
 
-    # Registrar en historial
-    await db["stock_history"].insert_one({
-        "product_id": updated.product_id,
-        "change": -diferencia,
-        "reason": "edición venta",
-        "date": datetime.utcnow()
-    })
+            # Registrar en historial
+            await db["stock_history"].insert_one({
+                "product_id": pid,
+                "change": -diferencia,
+                "reason": "edición venta",
+                "date": datetime.utcnow()
+            })
 
-    return {"message": "✅ Venta actualizada con éxito"}
+    # Obtener la venta actualizada
+    updated_sale = await db["sales"].find_one({"_id": object_id})
+    updated_sale["id"] = str(updated_sale["_id"])
+    updated_sale.pop("_id", None)
+    
+    return updated_sale
 
 # ====================================
 # 🔍 Buscar ventas por ID de producto
@@ -229,20 +275,29 @@ async def search_sales(query: str = ""):
     if db is None:
         raise HTTPException(status_code=500, detail="Base de datos no disponible")
     
-    filtro = {"product_id": {"$regex": query, "$options": "i"}}
-    cursor = db["sales"].find(filtro)
+    # Buscar por ID de cliente o ID de producto
+    filtro = {
+        "$or": [
+            {"client": {"$regex": query, "$options": "i"}},
+            {"items.product_id": {"$regex": query, "$options": "i"}}
+        ]
+    }
+    
+    cursor = db["sales"].find(filtro).sort("date", -1)
     resultados = []
 
     async for venta in cursor:
-        producto = await db["products"].find_one({"code": venta["product_id"]})
-        resultados.append({
-            "id": str(venta["_id"]),
-            "product_id": venta["product_id"],
-            "product_code": venta["product_id"],
-            "name": producto["name"] if producto else "Desconocido",
-            "quantity": venta["quantity"],
-            "price": venta["price"]
-        })
+        # Convertir ObjectId a string
+        venta["id"] = str(venta["_id"])
+        venta.pop("_id", None)
+        
+        # Obtener información de productos para cada ítem
+        for item in venta["items"]:
+            producto = await db["products"].find_one({"code": item["product_id"]})
+            item["product_name"] = producto["name"] if producto else "Desconocido"
+            item["product_code"] = item["product_id"]
+        
+        resultados.append(venta)
 
     return resultados
 
@@ -267,20 +322,24 @@ async def ver_historial():
         },
         {"$unwind": {"path": "$producto", "preserveNullAndEmptyArrays": True}},
         {"$sort": {"date": -1}},
-        {"$limit": 100}
+        {"$limit": 100},
+        {
+            "$project": {
+                "_id": 0,
+                "id": {"$toString": "$_id"},
+                "product_id": 1,
+                "product_name": "$producto.name",
+                "change": 1,
+                "reason": 1,
+                "date": 1
+            }
+        }
     ]
 
     historial = []
     cursor = db["stock_history"].aggregate(pipeline)
     
     async for movimiento in cursor:
-        historial.append({
-            "id": str(movimiento["_id"]),
-            "product_id": movimiento["product_id"],
-            "product_name": movimiento.get("producto", {}).get("name", "Desconocido"),
-            "change": movimiento["change"],
-            "reason": movimiento["reason"],
-            "date": movimiento["date"]
-        })
+        historial.append(movimiento)
 
     return historial

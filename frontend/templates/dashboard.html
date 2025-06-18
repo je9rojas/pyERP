@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Sistema ERP{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="my-4">📊 Dashboard</h1>
+        <div class="text-end">
+            <span class="badge bg-primary">Hoy: {{ fecha_actual }}</span>
+        </div>
+    </div>
+
+    <!-- Resumen rápido -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-start border-5 border-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h5 class="card-title">Productos</h5>
+                            <p class="card-text display-6">125</p>
+                        </div>
+                        <div class="bg-primary text-white p-3 rounded-circle">
+                            <i class="bi bi-box-seam display-6"></i>
+                        </div>
+                    </div>
+                    <a href="/inventario" class="small text-decoration-none">
+                        Ver inventario completo <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card border-start border-5 border-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h5 class="card-title">Ventas Hoy</h5>
+                            <p class="card-text display-6">24</p>
+                        </div>
+                        <div class="bg-success text-white p-3 rounded-circle">
+                            <i class="bi bi-cart-check display-6"></i>
+                        </div>
+                    </div>
+                    <a href="#" class="small text-decoration-none">
+                        Ver reporte diario <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card border-start border-5 border-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h5 class="card-title">Stock Bajo</h5>
+                            <p class="card-text display-6">8</p>
+                        </div>
+                        <div class="bg-warning text-white p-3 rounded-circle">
+                            <i class="bi bi-exclamation-triangle display-6"></i>
+                        </div>
+                    </div>
+                    <a href="/inventario" class="small text-decoration-none">
+                        Ver productos críticos <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card border-start border-5 border-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h5 class="card-title">Ingresos Mes</h5>
+                            <p class="card-text display-6">$24,850</p>
+                        </div>
+                        <div class="bg-info text-white p-3 rounded-circle">
+                            <i class="bi bi-currency-dollar display-6"></i>
+                        </div>
+                    </div>
+                    <a href="#" class="small text-decoration-none">
+                        Ver reporte financiero <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección de acciones rápidas -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Acciones Rápidas</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <a href="/registro-productos" class="text-decoration-none">
+                        <div class="card h-100 text-center hover-shadow">
+                            <div class="card-body">
+                                <div class="bg-primary text-white p-3 rounded-circle mb-3 mx-auto" style="width: 70px; height: 70px;">
+                                    <i class="bi bi-plus-lg display-5"></i>
+                                </div>
+                                <h6 class="card-title">Nuevo Producto</h6>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                
+                <div class="col-md-3">
+                    <a href="#" class="text-decoration-none">
+                        <div class="card h-100 text-center hover-shadow">
+                            <div class="card-body">
+                                <div class="bg-success text-white p-3 rounded-circle mb-3 mx-auto" style="width: 70px; height: 70px;">
+                                    <i class="bi bi-cart-plus display-5"></i>
+                                </div>
+                                <h6 class="card-title">Nueva Venta</h6>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                
+                <div class="col-md-3">
+                    <a href="#" class="text-decoration-none">
+                        <div class="card h-100 text-center hover-shadow">
+                            <div class="card-body">
+                                <div class="bg-info text-white p-3 rounded-circle mb-3 mx-auto" style="width: 70px; height: 70px;">
+                                    <i class="bi bi-clipboard-data display-5"></i>
+                                </div>
+                                <h6 class="card-title">Reporte Diario</h6>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                
+                <div class="col-md-3">
+                    <a href="/inventario" class="text-decoration-none">
+                        <div class="card h-100 text-center hover-shadow">
+                            <div class="card-body">
+                                <div class="bg-warning text-white p-3 rounded-circle mb-3 mx-auto" style="width: 70px; height: 70px;">
+                                    <i class="bi bi-boxes display-5"></i>
+                                </div>
+                                <h6 class="card-title">Ver Inventario</h6>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Últimos movimientos -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Últimos Productos Registrados</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">AP001 - Producto Ejemplo</h6>
+                                <small class="text-muted">Hace 2 horas</small>
+                            </div>
+                            <p class="mb-1 small">Precio: $25.99 | Stock: 50</p>
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">AP002 - Otro Producto</h6>
+                                <small class="text-muted">Hoy</small>
+                            </div>
+                            <p class="mb-1 small">Precio: $45.50 | Stock: 30</p>
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">AP003 - Tercer Producto</h6>
+                                <small class="text-muted">Ayer</small>
+                            </div>
+                            <p class="mb-1 small">Precio: $12.75 | Stock: 100</p>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Productos con Stock Crítico</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <a href="/inventario" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">CR001 - Producto Crítico 1</h6>
+                                <span class="badge bg-danger">Stock: 2</span>
+                            </div>
+                            <p class="mb-1 small">Última compra: hace 30 días</p>
+                        </a>
+                        <a href="/inventario" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">CR002 - Producto Crítico 2</h6>
+                                <span class="badge bg-danger">Stock: 3</span>
+                            </div>
+                            <p class="mb-1 small">Última compra: hace 15 días</p>
+                        </a>
+                        <a href="/inventario" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">CR003 - Producto Crítico 3</h6>
+                                <span class="badge bg-warning">Stock: 5</span>
+                            </div>
+                            <p class="mb-1 small">Última compra: hace 20 días</p>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import logging
+import datetime  # Importar datetime para el dashboard
 from backend.database import connect_to_mongodb, close_mongodb_connection
 
 # Configurar logging
@@ -23,10 +24,12 @@ async def shutdown_event():
     logger.info("Deteniendo aplicación...")
     await close_mongodb_connection()
 
-# Cambiar la configuración de archivos estáticos
+# Configuración para servir archivos estáticos
 app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
-
 templates = Jinja2Templates(directory="frontend/templates")
+
+# Añadir variables globales a todos los templates
+templates.env.globals["current_year"] = datetime.datetime.now().year
 
 # Middleware para manejar errores
 @app.middleware("http")
@@ -41,11 +44,21 @@ async def add_process_time_header(request: Request, call_next):
             content={"error": "Internal server error", "details": str(e)}
         )
 
-# Rutas para las páginas HTML
+# Ruta para el dashboard (página de inicio)
 @app.get("/", response_class=HTMLResponse)
-async def serve_index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+@app.get("/dashboard", response_class=HTMLResponse)
+async def serve_dashboard(request: Request):
+    return templates.TemplateResponse("dashboard.html", {
+        "request": request,
+        "fecha_actual": datetime.datetime.now().strftime("%d/%m/%Y")
+    })
 
+# Ruta para registro de productos
+@app.get("/registro-productos", response_class=HTMLResponse)
+async def serve_registro_productos(request: Request):
+    return templates.TemplateResponse("registro_productos.html", {"request": request})
+
+# Rutas para las demás páginas
 @app.get("/ventas", response_class=HTMLResponse)
 async def serve_ventas(request: Request):
     return templates.TemplateResponse("ventas.html", {"request": request})
@@ -54,6 +67,10 @@ async def serve_ventas(request: Request):
 async def serve_compras(request: Request):
     return templates.TemplateResponse("compras.html", {"request": request})
 
+@app.get("/inventario", response_class=HTMLResponse)
+async def serve_inventario(request: Request):
+    return templates.TemplateResponse("inventario.html", {"request": request})
+
 # Health check
 @app.get("/health")
 async def health_check():
@@ -61,14 +78,19 @@ async def health_check():
 
 # Importación segura de routers
 try:
-    from backend.routes import products, sales, purchases
+    from backend.routes import products, sales, purchases, inventory
     app.include_router(products.router, prefix="/api/products", tags=["Products"])
     app.include_router(sales.router, prefix="/api/sales", tags=["Sales"])
     app.include_router(purchases.router, prefix="/api/purchases", tags=["Purchases"])
+    app.include_router(inventory.router, prefix="/api/inventory", tags=["Inventory"])
     logger.info("Routers API cargados correctamente")
 except ImportError as e:
     logger.error(f"Error al cargar routers: {str(e)}")
+    import traceback
+    logger.error(traceback.format_exc())  # Traza detallada
 except Exception as e:
     logger.error(f"Error inesperado al cargar routers: {str(e)}")
+    import traceback
+    logger.error(traceback.format_exc())
 
 logger.info("Aplicación FastAPI completamente inicializada")

@@ -3,35 +3,134 @@ document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("ventaForm");
   const tablaVentas = document.getElementById("tablaVentas")?.querySelector("tbody");
   const messageDiv = document.getElementById("message");
+  const itemsContainer = document.getElementById("itemsContainer");
+  const addItemBtn = document.getElementById("addItemBtn");
+  const totalElement = document.getElementById("totalVenta");
   
   // Verificar que los elementos existan
-  if (!form || !tablaVentas || !messageDiv) {
+  if (!form || !tablaVentas || !messageDiv || !itemsContainer || !addItemBtn || !totalElement) {
     console.error("Elementos esenciales no encontrados en el DOM");
     return;
   }
 
-  const inputBusquedaID = document.getElementById("busquedaProductoVenta");
-  const inputBusquedaCantidad = document.getElementById("busquedaCantidadVenta");
-  const inputBusquedaPrecio = document.getElementById("busquedaPrecioVenta");
+  let currentItems = [];
+  let itemCounter = 0;
 
   // 🔄 Inicializar
   fetchVentas();
+
+  // ➕ Agregar nuevo ítem al formulario
+  addItemBtn.addEventListener("click", () => {
+    addItemForm();
+  });
+
+  // Función para agregar un nuevo ítem
+  function addItemForm(item = {}) {
+    itemCounter++;
+    const itemDiv = document.createElement("div");
+    itemDiv.className = "item-form mb-3 p-3 border rounded";
+    itemDiv.innerHTML = `
+      <div class="row g-3">
+        <div class="col-md-5">
+          <label class="form-label">Producto</label>
+          <input type="text" class="form-control product-code" 
+                 placeholder="Código del producto" 
+                 value="${item.product_id || ''}" required>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Cantidad</label>
+          <input type="number" class="form-control quantity" 
+                 min="1" value="${item.quantity || '1'}" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Precio Unitario</label>
+          <input type="number" class="form-control price" 
+                 step="0.01" min="0" value="${item.price || ''}" required>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <button type="button" class="btn btn-danger remove-item-btn">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
+      </div>
+    `;
+    
+    itemsContainer.appendChild(itemDiv);
+    
+    // Configurar evento para eliminar ítem
+    const removeBtn = itemDiv.querySelector(".remove-item-btn");
+    removeBtn.addEventListener("click", () => {
+      itemDiv.remove();
+      updateTotal();
+    });
+    
+    // Configurar autocompletado para producto
+    const productInput = itemDiv.querySelector(".product-code");
+    productInput.addEventListener("input", async (e) => {
+      const code = e.target.value.trim();
+      if (code.length > 2) {
+        const product = await fetchProduct(code);
+        if (product) {
+          const priceInput = itemDiv.querySelector(".price");
+          priceInput.value = product.price;
+          updateTotal();
+        }
+      }
+    });
+    
+    // Actualizar total cuando cambian cantidades o precios
+    const quantityInput = itemDiv.querySelector(".quantity");
+    const priceInput = itemDiv.querySelector(".price");
+    
+    [quantityInput, priceInput].forEach(input => {
+      input.addEventListener("input", updateTotal);
+    });
+  }
 
   // 📌 Registrar venta
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const data = {
-      product_id: document.getElementById("product_id").value.trim(),
-      quantity: parseInt(document.getElementById("quantity").value),
-      price: parseFloat(document.getElementById("price").value)
-    };
-
-    // Validaciones básicas
-    if (!data.product_id || isNaN(data.quantity) || isNaN(data.price)) {
-      Swal.fire("❌ Error", "Datos inválidos", "error");
+    const client = document.getElementById("client").value.trim();
+    if (!client) {
+      Swal.fire("❌ Error", "Debe ingresar un cliente", "error");
       return;
     }
+
+    // Recolectar ítems
+    const items = [];
+    const itemForms = document.querySelectorAll(".item-form");
+    
+    for (const itemForm of itemForms) {
+      const productCode = itemForm.querySelector(".product-code").value.trim();
+      const quantity = parseInt(itemForm.querySelector(".quantity").value);
+      const price = parseFloat(itemForm.querySelector(".price").value);
+      
+      if (!productCode || isNaN(quantity) || isNaN(price)) {
+        Swal.fire("❌ Error", "Datos incompletos en los ítems", "error");
+        return;
+      }
+      
+      items.push({
+        product_id: productCode,
+        quantity: quantity,
+        price: price
+      });
+    }
+    
+    if (items.length === 0) {
+      Swal.fire("❌ Error", "Debe agregar al menos un producto", "error");
+      return;
+    }
+
+    // Calcular total
+    const total = items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+
+    const data = {
+      client: client,
+      items: items,
+      total: total
+    };
 
     try {
       const res = await fetch("/api/sales/", {
@@ -42,8 +141,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const result = await res.json();
       if (res.ok) {
-        Swal.fire("✅ Éxito", result.message, "success");
+        Swal.fire("✅ Éxito", "Venta registrada con éxito", "success");
         form.reset();
+        itemsContainer.innerHTML = ""; // Limpiar ítems
+        totalElement.textContent = "0.00";
         fetchVentas();
       } else {
         const errorMsg = result.detail || "Error desconocido";
@@ -56,10 +157,12 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // 🔍 Búsquedas
+  const inputBusquedaCliente = document.getElementById("busquedaClienteVenta");
+  const inputBusquedaTotal = document.getElementById("busquedaTotalVenta");
+  
   const inputsBusqueda = [
-    inputBusquedaID,
-    inputBusquedaCantidad,
-    inputBusquedaPrecio
+    inputBusquedaCliente,
+    inputBusquedaTotal
   ].filter(input => input); // Filtrar inputs válidos
 
   inputsBusqueda.forEach(input => {
@@ -69,7 +172,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // 📦 Obtener ventas
   async function fetchVentas() {
     try {
-      const query = inputBusquedaID?.value.trim() || "";
+      const query = inputBusquedaCliente?.value.trim() || "";
       const url = query ? `/api/sales/search?query=${encodeURIComponent(query)}` : "/api/sales/list";
 
       const res = await fetch(url);
@@ -82,7 +185,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (err) {
       console.error("Error al cargar ventas:", err);
       if (messageDiv) {
-        messageDiv.textContent = "❌ Error al cargar ventas";
+        messageDiv.textContent = "❌ Error al cargar ventas: " + err.message;
       }
     }
   }
@@ -93,16 +196,11 @@ document.addEventListener("DOMContentLoaded", () => {
     
     tablaVentas.innerHTML = "";
     
-    const filtrarCantidad = inputBusquedaCantidad?.value.trim();
-    const filtrarPrecio = inputBusquedaPrecio?.value.trim();
+    const filtrarTotal = inputBusquedaTotal?.value.trim();
 
     ventas.forEach(venta => {
-      // Filtrado adicional en cliente
-      if (filtrarCantidad && venta.quantity !== parseInt(filtrarCantidad)) {
-        return;
-      }
-      
-      if (filtrarPrecio && venta.price !== parseFloat(filtrarPrecio)) {
+      // Filtrado por total
+      if (filtrarTotal && venta.total !== parseFloat(filtrarTotal)) {
         return;
       }
 
@@ -113,99 +211,117 @@ document.addEventListener("DOMContentLoaded", () => {
   // 🧱 Mostrar fila individual
   function renderVenta(venta) {
     const tr = document.createElement("tr");
-
-    // Manejar valores nulos o indefinidos
-    const productCode = venta.product_code || "N/A";
-    const productName = venta.name || "N/A";
-    const quantity = venta.quantity ?? 0;
-    const price = venta.price?.toFixed(2) ?? "0.00";
+    const fecha = new Date(venta.date).toLocaleDateString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
 
     tr.innerHTML = `
-      <td>${productCode}</td>
-      <td>${productName}</td>
-      <td>${quantity}</td>
-      <td>${price}</td>
+      <td>${venta.client}</td>
+      <td>${venta.items.length} productos</td>
+      <td>${venta.total.toFixed(2)}</td>
+      <td>${fecha}</td>
       <td>
-        <button class="btn-editar" data-id="${venta.id}" 
-                data-quantity="${quantity}" 
-                data-price="${venta.price}" 
-                data-product="${venta.product_id}">✏️</button>
-        <button class="btn-eliminar" data-id="${venta.id}">🗑️</button>
+        <button class="btn btn-primary btn-sm btn-detalles" data-id="${venta.id}">
+          <i class="bi bi-eye"></i> Detalles
+        </button>
+        <button class="btn btn-danger btn-sm btn-eliminar" data-id="${venta.id}">
+          <i class="bi bi-trash"></i>
+        </button>
       </td>
     `;
     
     tablaVentas.appendChild(tr);
   }
 
-  // 🎯 Event delegation para botones de editar/eliminar
+  // 🎯 Event delegation para botones de detalles y eliminar
   tablaVentas.addEventListener("click", (e) => {
-    if (e.target.classList.contains("btn-editar")) {
-      const id = e.target.dataset.id;
-      const quantity = parseFloat(e.target.dataset.quantity);
-      const price = parseFloat(e.target.dataset.price);
-      const productId = e.target.dataset.product;
-      editarVenta(id, quantity, price, productId);
+    if (e.target.classList.contains("btn-detalles") || 
+        e.target.closest(".btn-detalles")) {
+      const id = e.target.closest(".btn-detalles").dataset.id;
+      verDetallesVenta(id);
     }
     
-    if (e.target.classList.contains("btn-eliminar")) {
-      const id = e.target.dataset.id;
+    if (e.target.classList.contains("btn-eliminar") || 
+        e.target.closest(".btn-eliminar")) {
+      const id = e.target.closest(".btn-eliminar").dataset.id;
       eliminarVenta(id);
     }
   });
 
-  // ✏️ Editar venta
-  async function editarVenta(id, cantidadActual, precioActual, productoID) {
+  // 👁️ Ver detalles de la venta
+  async function verDetallesVenta(id) {
     try {
-      const { value: valores } = await Swal.fire({
-        title: "✏️ Editar Venta",
-        html: `
-          <input id="swal-cantidad" class="swal2-input" type="number" min="1" value="${cantidadActual}">
-          <input id="swal-precio" class="swal2-input" type="number" min="0" step="0.01" value="${precioActual}">
-        `,
-        focusConfirm: false,
-        preConfirm: () => {
-          const cantidad = parseInt(document.getElementById("swal-cantidad").value);
-          const precio = parseFloat(document.getElementById("swal-precio").value);
+      const res = await fetch(`/api/sales/${id}`);
+      if (!res.ok) throw new Error(`Error ${res.status}: ${res.statusText}`);
+      
+      const venta = await res.json();
+      
+      let detallesHTML = `
+        <div class="container">
+          <h5 class="mb-3">Detalles de Venta</h5>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <p><strong>Cliente:</strong> ${venta.client}</p>
+            </div>
+            <div class="col-md-6">
+              <p><strong>Fecha:</strong> ${new Date(venta.date).toLocaleString()}</p>
+            </div>
+          </div>
           
-          if (isNaN(cantidad)) {
-            Swal.showValidationMessage("Cantidad inválida");
-            return false;
-          }
-          
-          if (isNaN(precio)) {
-            Swal.showValidationMessage("Precio inválido");
-            return false;
-          }
-          
-          return [cantidad, precio];
-        }
+          <h6 class="mb-3">Productos:</h6>
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Producto</th>
+                  <th>Cantidad</th>
+                  <th>Precio Unitario</th>
+                  <th>Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+      `;
+      
+      venta.items.forEach(item => {
+        detallesHTML += `
+          <tr>
+            <td>${item.product_id}</td>
+            <td>${item.product_name || 'Desconocido'}</td>
+            <td>${item.quantity}</td>
+            <td>${item.price.toFixed(2)}</td>
+            <td>${(item.quantity * item.price).toFixed(2)}</td>
+          </tr>
+        `;
       });
-
-      if (!valores) return;
-
-      const [nuevaCantidad, nuevoPrecio] = valores;
-
-      const res = await fetch(`/api/sales/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          product_id: productoID, 
-          quantity: nuevaCantidad, 
-          price: nuevoPrecio 
-        })
+      
+      detallesHTML += `
+              </tbody>
+              <tfoot>
+                <tr class="table-primary">
+                  <td colspan="4" class="text-end fw-bold">Total:</td>
+                  <td class="fw-bold">${venta.total.toFixed(2)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      `;
+      
+      Swal.fire({
+        title: `Venta #${id}`,
+        html: detallesHTML,
+        width: '80%',
+        showConfirmButton: false,
+        showCloseButton: true
       });
-
-      const result = await res.json();
-      if (res.ok) {
-        Swal.fire("✅ Actualizado", result.message, "success");
-        fetchVentas();
-      } else {
-        const errorMsg = result.detail || "Error al actualizar";
-        Swal.fire("❌ Error", errorMsg, "error");
-      }
     } catch (error) {
-      console.error("Error al editar venta:", error);
-      Swal.fire("❌ Error", "Error al editar venta", "error");
+      console.error("Error al obtener detalles de la venta:", error);
+      Swal.fire("❌ Error", "No se pudieron cargar los detalles de la venta", "error");
     }
   }
 
@@ -214,11 +330,12 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const confirm = await Swal.fire({
         title: "¿Eliminar venta?",
-        text: "Esta acción es irreversible",
+        text: "Esta acción es irreversible y revertirá el stock de productos",
         icon: "warning",
         showCancelButton: true,
         confirmButtonText: "Sí, eliminar",
-        cancelButtonText: "Cancelar"
+        cancelButtonText: "Cancelar",
+        confirmButtonColor: "#dc3545"
       });
 
       if (!confirm.isConfirmed) return;
@@ -238,4 +355,35 @@ document.addEventListener("DOMContentLoaded", () => {
       Swal.fire("❌ Error", "Error al eliminar venta", "error");
     }
   }
+
+  // 🔍 Obtener información de un producto
+  async function fetchProduct(code) {
+    try {
+      const res = await fetch(`/api/products/${code}`);
+      if (res.ok) {
+        return await res.json();
+      }
+      return null;
+    } catch (error) {
+      console.error("Error al buscar producto:", error);
+      return null;
+    }
+  }
+
+  // 🧮 Actualizar total de la venta
+  function updateTotal() {
+    const items = document.querySelectorAll(".item-form");
+    let total = 0;
+    
+    items.forEach(item => {
+      const quantity = parseFloat(item.querySelector(".quantity").value) || 0;
+      const price = parseFloat(item.querySelector(".price").value) || 0;
+      total += quantity * price;
+    });
+    
+    totalElement.textContent = total.toFixed(2);
+  }
+
+  // ➕ Agregar el primer ítem al cargar la página
+  addItemForm();
 });

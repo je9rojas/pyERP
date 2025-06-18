@@ -1,4 +1,4 @@
-// 📁 frontend/js/compras.js
+// 📁 frontend/static/js/compras.js
 
 document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("purchaseForm");
