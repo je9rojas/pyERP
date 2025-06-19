@@ -22,6 +22,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   let itemCounter = 0;
+  
+  // Cache local para productos
+  const productCache = new Map();
 
   // ➕ Agregar nuevo ítem al formulario
   addItemBtn.addEventListener("click", () => {
@@ -68,18 +71,40 @@ document.addEventListener("DOMContentLoaded", () => {
       updateTotal();
     });
     
-    // Configurar autocompletado para producto
+    // Configurar autocompletado para producto con debouncing y cache
     const productInput = itemDiv.querySelector(".product-code");
-    productInput.addEventListener("input", async (e) => {
+    let timeoutId = null;
+
+    productInput.addEventListener("input", (e) => {
       const code = e.target.value.trim();
-      if (code.length >= 2) {
+      
+      // 1. Limpiar timeout anterior
+      clearTimeout(timeoutId);
+      
+      // 2. Requerir mínimo 4 caracteres
+      if (code.length < 4) return;
+      
+      // 3. Usar debouncing de 300ms
+      timeoutId = setTimeout(async () => {
+        // 4. Primero verificar caché local
+        if (productCache.has(code)) {
+          const priceInput = itemDiv.querySelector(".price");
+          priceInput.value = productCache.get(code);
+          updateTotal();
+          return;
+        }
+        
+        // 5. Hacer solicitud al servidor
         const product = await fetchProduct(code);
         if (product) {
+          // Guardar en caché
+          productCache.set(code, product.price);
+          
           const priceInput = itemDiv.querySelector(".price");
           priceInput.value = product.price;
           updateTotal();
         }
-      }
+      }, 300);
     });
     
     // Actualizar total cuando cambian cantidades o precios

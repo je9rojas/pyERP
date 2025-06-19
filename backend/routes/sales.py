@@ -286,11 +286,12 @@ async def search_sales(query: str = ""):
     if db is None:
         raise HTTPException(status_code=500, detail="Base de datos no disponible")
     
-    # Buscar por cliente o ID de producto
+    # Buscar por cliente, código de producto o nombre de producto
     filtro = {
         "$or": [
             {"client": {"$regex": query, "$options": "i"}},
-            {"items.product_id": {"$regex": query, "$options": "i"}}
+            {"items.product_id": {"$regex": query, "$options": "i"}},
+            {"items.product_name": {"$regex": query, "$options": "i"}}
         ]
     }
     
@@ -357,3 +358,36 @@ async def ver_historial():
         historial.append(movimiento)
 
     return historial
+
+# ====================================
+# 🔍 Obtener detalles de una venta por ID
+# ====================================
+
+@router.get("/{sale_id}")
+async def get_sale_details(sale_id: str):
+    db = get_database()
+    if db is None:
+        raise HTTPException(status_code=500, detail="Base de datos no disponible")
+    
+    try:
+        object_id = ObjectId(sale_id)
+    except:
+        raise HTTPException(status_code=400, detail="ID inválido")
+    
+    venta = await db["sales"].find_one({"_id": object_id})
+    if not venta:
+        raise HTTPException(status_code=404, detail="Venta no encontrada")
+    
+    # Convertir ObjectId a string
+    venta["id"] = str(venta["_id"])
+    venta.pop("_id", None)
+    
+    # Obtener nombres de productos para cada ítem
+    items = venta.get("items", [])
+    for item in items:
+        product_id = item.get("product_id")
+        if product_id:
+            producto = await db["products"].find_one({"code": product_id})
+            item["product_name"] = producto["name"] if producto else "Desconocido"
+    
+    return venta
