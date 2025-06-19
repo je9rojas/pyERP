@@ -1,3 +1,4 @@
+// 📁 frontend/static/js/compras.js
 document.addEventListener("DOMContentLoaded", () => {
   // Selección de elementos esenciales
   const form = document.getElementById("compraForm");
@@ -14,16 +15,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Elementos opcionales (historial de compras)
   const tablaCompras = document.getElementById("tablaCompras");
-  let tablaBody = null;
-  
-  if (tablaCompras) {
-    tablaBody = tablaCompras.querySelector("tbody");
-  }
+  const tablaBody = tablaCompras ? tablaCompras.querySelector("tbody") : null;
+  const mensajeInicial = document.getElementById("mensajeInicial");
 
   let itemCounter = 0;
   
   // Cache local para productos
   const productCache = new Map();
+
+  // Variables para paginación
+  let currentPage = 1;
+  const itemsPerPage = 10; // Compras por página
+  let totalCompras = 0;
 
   // ➕ Agregar nuevo ítem al formulario
   addItemBtn.addEventListener("click", () => {
@@ -177,11 +180,6 @@ document.addEventListener("DOMContentLoaded", () => {
         itemsContainer.innerHTML = "";
         totalElement.textContent = "0.00";
         
-        // Recargar historial si existe
-        if (tablaBody) {
-          loadPurchases();
-        }
-        
         // Agregar nuevo ítem vacío
         addItemForm();
       } else {
@@ -230,6 +228,11 @@ document.addEventListener("DOMContentLoaded", () => {
     
     tablaBody.innerHTML = "";
     
+    if (compras.length === 0) {
+      tablaBody.innerHTML = `<tr><td colspan="5" class="text-center">No se encontraron compras</td></tr>`;
+      return;
+    }
+    
     compras.forEach(compra => {
       const tr = document.createElement("tr");
       const fecha = new Date(compra.date).toLocaleDateString('es-ES', {
@@ -245,7 +248,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <td>${compra.items.length} productos</td>
         <td>${compra.total?.toFixed(2) || '0.00'}</td>
         <td>${fecha}</td>
-        <td>
+        <td class="text-center">
           <button class="btn btn-primary btn-sm btn-detalles" data-id="${compra.id}">
             <i class="bi bi-eye"></i> Detalles
           </button>
@@ -370,9 +373,9 @@ document.addEventListener("DOMContentLoaded", () => {
           
           showAlert("Eliminada", result.message || "Compra eliminada correctamente", "success");
           
-          // Recargar historial
-          if (tablaBody) {
-            loadPurchases();
+          // Recargar historial solo si ya hay una búsqueda activa
+          if (tablaBody.innerHTML !== "" && !mensajeInicial) {
+            loadPurchases(currentPage, getCurrentFilters());
           }
         } catch (error) {
           console.error("Error al eliminar compra:", error);
@@ -384,19 +387,28 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // 📦 Obtener compras
-  async function loadPurchases() {
+  // 📦 Obtener compras con paginación y filtros
+  async function loadPurchases(page = 1, filters = {}) {
     try {
       if (!tablaBody) return;
       
-      // Obtener el valor de búsqueda
-      const searchInput = document.getElementById("busquedaProveedorCompra");
-      const query = searchInput ? searchInput.value.trim() : "";
+      // Mostrar spinner de carga
+      tablaBody.innerHTML = `<tr><td colspan="5" class="text-center"><div class="spinner-border" role="status"></div> Cargando compras...</td></tr>`;
       
-      const url = query ? 
-        `/api/purchases/search?query=${encodeURIComponent(query)}` : 
-        "/api/purchases/list";
-
+      // Construir parámetros de búsqueda
+      const params = new URLSearchParams({
+        page: page,
+        per_page: itemsPerPage
+      });
+      
+      // Agregar filtros si existen
+      if (filters.proveedor) params.append("proveedor", filters.proveedor);
+      if (filters.producto) params.append("producto", filters.producto);
+      if (filters.fechaInicio) params.append("fecha_inicio", filters.fechaInicio);
+      if (filters.fechaFin) params.append("fecha_fin", filters.fechaFin);
+      
+      const url = `/api/purchases/search?${params.toString()}`;
+      
       const res = await fetch(url);
       
       if (!res.ok) {
@@ -404,26 +416,145 @@ document.addEventListener("DOMContentLoaded", () => {
         throw new Error(errorData.detail || `Error ${res.status}: ${res.statusText}`);
       }
       
-      const compras = await res.json();
-      if (!Array.isArray(compras)) throw new Error("Formato de respuesta inválido");
+      const data = await res.json();
+      
+      // Manejar diferentes formatos de respuesta
+      let compras = [];
+      if (Array.isArray(data)) {
+        // Formato antiguo (sin paginación)
+        compras = data;
+        totalCompras = data.length;
+      } else if (data.compras && Array.isArray(data.compras)) {
+        // Formato nuevo (con paginación)
+        compras = data.compras;
+        totalCompras = data.total;
+      } else {
+        throw new Error("Formato de respuesta inválido");
+      }
+      
+      if (!Array.isArray(compras)) {
+        throw new Error("Formato de compras inválido");
+      }
 
       renderPurchases(compras);
+      renderPagination(page, totalCompras);
+      
+      // Ocultar mensaje inicial si existe
+      if (mensajeInicial) {
+        mensajeInicial.style.display = "none";
+      }
     } catch (err) {
       console.error("Error al cargar compras:", err);
       showAlert("Error", "Error al cargar compras: " + err.message, "error");
+      if (tablaBody) {
+        tablaBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Error al cargar datos</td></tr>`;
+      }
     }
   }
-
+  
+  // 🧩 Renderizar paginación
+  function renderPagination(currentPage, totalItems) {
+    const pagination = document.getElementById("paginacionCompras");
+    if (!pagination) return;
+    
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    pagination.innerHTML = "";
+    
+    if (totalPages <= 1) return;
+    
+    // Botón Anterior
+    const prevItem = document.createElement("li");
+    prevItem.className = `page-item ${currentPage === 1 ? "disabled" : ""}`;
+    prevItem.innerHTML = `<a class="page-link" href="#" data-page="${currentPage - 1}">&laquo;</a>`;
+    pagination.appendChild(prevItem);
+    
+    // Páginas
+    const startPage = Math.max(1, currentPage - 2);
+    const endPage = Math.min(totalPages, currentPage + 2);
+    
+    for (let i = startPage; i <= endPage; i++) {
+      const pageItem = document.createElement("li");
+      pageItem.className = `page-item ${i === currentPage ? "active" : ""}`;
+      pageItem.innerHTML = `<a class="page-link" href="#" data-page="${i}">${i}</a>`;
+      pagination.appendChild(pageItem);
+    }
+    
+    // Botón Siguiente
+    const nextItem = document.createElement("li");
+    nextItem.className = `page-item ${currentPage === totalPages ? "disabled" : ""}`;
+    nextItem.innerHTML = `<a class="page-link" href="#" data-page="${currentPage + 1}">&raquo;</a>`;
+    pagination.appendChild(nextItem);
+    
+    // Eventos de paginación
+    pagination.querySelectorAll(".page-link").forEach(link => {
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        const page = parseInt(link.dataset.page);
+        if (!isNaN(page)) {
+          currentPage = page;
+          loadPurchases(currentPage, getCurrentFilters());
+        }
+      });
+    });
+  }
+  
+  // 🧾 Obtener filtros actuales
+  function getCurrentFilters() {
+    const fechaInput = document.getElementById("filtroFecha");
+    let fechaInicio = "";
+    let fechaFin = "";
+    
+    if (fechaInput && fechaInput._flatpickr) {
+      const selectedDates = fechaInput._flatpickr.selectedDates;
+      if (selectedDates.length === 2) {
+        fechaInicio = selectedDates[0].toISOString().split('T')[0];
+        fechaFin = selectedDates[1].toISOString().split('T')[0];
+      }
+    }
+    
+    return {
+      proveedor: document.getElementById("filtroProveedor").value.trim(),
+      producto: document.getElementById("filtroProducto").value.trim(),
+      fechaInicio: fechaInicio,
+      fechaFin: fechaFin
+    };
+  }
+  
   // Inicialización final
   if (tablaBody) {
     // Configurar evento de búsqueda
-    const searchInput = document.getElementById("busquedaProveedorCompra");
-    if (searchInput) {
-      searchInput.addEventListener("input", loadPurchases);
+    const filtroForm = document.getElementById("filtroComprasForm");
+    if (filtroForm) {
+      filtroForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        currentPage = 1;
+        loadPurchases(currentPage, getCurrentFilters());
+      });
     }
     
-    // Cargar compras iniciales
-    loadPurchases();
+    // Configurar botón limpiar
+    const btnLimpiar = document.getElementById("btnLimpiarFiltros");
+    if (btnLimpiar) {
+      btnLimpiar.addEventListener("click", () => {
+        document.getElementById("filtroProveedor").value = "";
+        document.getElementById("filtroProducto").value = "";
+        const fechaInput = document.getElementById("filtroFecha");
+        if (fechaInput && fechaInput._flatpickr) {
+          fechaInput._flatpickr.clear();
+        }
+        
+        // Restaurar mensaje inicial
+        if (mensajeInicial) {
+          mensajeInicial.style.display = "";
+          tablaBody.innerHTML = "";
+          tablaBody.appendChild(mensajeInicial);
+        }
+        
+        // Limpiar paginación
+        const pagination = document.getElementById("paginacionCompras");
+        if (pagination) pagination.innerHTML = "";
+      });
+    }
   }
 
   // ➕ Agregar el primer ítem al cargar la página

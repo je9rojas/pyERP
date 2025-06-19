@@ -1,5 +1,3 @@
-<!-- 📁 frontend/templates/inventario.html -->
-
 {% extends "base.html" %}
 
 {% block title %}Inventario - Sistema ERP{% endblock %}
@@ -13,7 +11,7 @@
         </a>
     </div>
     
-    <div class="card mb-4">
+    <div class="card">
         <div class="card-header bg-light">
             <div class="row">
                 <div class="col-md-6">
@@ -39,29 +37,6 @@
                     </thead>
                     <tbody id="inventoryBody">
                         <!-- Los productos se cargarán aquí -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-    
-    <div class="card">
-        <div class="card-header bg-light">
-            <h5 class="mb-0">Historial Reciente de Movimientos</h5>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table" id="historyTable">
-                    <thead>
-                        <tr>
-                            <th>Producto</th>
-                            <th>Tipo</th>
-                            <th>Cantidad</th>
-                            <th>Fecha</th>
-                        </tr>
-                    </thead>
-                    <tbody id="historyBody">
-                        <!-- El historial se cargará aquí -->
                     </tbody>
                 </table>
             </div>

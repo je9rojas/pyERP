@@ -15,16 +15,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Elementos opcionales (historial de ventas)
   const tablaVentas = document.getElementById("tablaVentas");
-  let tablaBody = null;
-  
-  if (tablaVentas) {
-    tablaBody = tablaVentas.querySelector("tbody");
-  }
+  const tablaBody = tablaVentas ? tablaVentas.querySelector("tbody") : null;
+  const mensajeInicial = document.getElementById("mensajeInicial");
 
   let itemCounter = 0;
   
   // Cache local para productos
   const productCache = new Map();
+
+  // Variables para paginación
+  let currentPage = 1;
+  const itemsPerPage = 10; // Ventas por página
+  let totalVentas = 0;
 
   // ➕ Agregar nuevo ítem al formulario
   addItemBtn.addEventListener("click", () => {
@@ -178,11 +180,6 @@ document.addEventListener("DOMContentLoaded", () => {
         itemsContainer.innerHTML = "";
         totalElement.textContent = "0.00";
         
-        // Recargar historial si existe
-        if (tablaBody) {
-          loadSales();
-        }
-        
         // Agregar nuevo ítem vacío
         addItemForm();
       } else {
@@ -231,6 +228,11 @@ document.addEventListener("DOMContentLoaded", () => {
     
     tablaBody.innerHTML = "";
     
+    if (ventas.length === 0) {
+      tablaBody.innerHTML = `<tr><td colspan="5" class="text-center">No se encontraron ventas</td></tr>`;
+      return;
+    }
+    
     ventas.forEach(venta => {
       const tr = document.createElement("tr");
       const fecha = new Date(venta.date).toLocaleDateString('es-ES', {
@@ -246,7 +248,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <td>${venta.items.length} productos</td>
         <td>${venta.total?.toFixed(2) || '0.00'}</td>
         <td>${fecha}</td>
-        <td>
+        <td class="text-center">
           <button class="btn btn-primary btn-sm btn-detalles" data-id="${venta.id}">
             <i class="bi bi-eye"></i> Detalles
           </button>
@@ -371,9 +373,9 @@ document.addEventListener("DOMContentLoaded", () => {
           
           showAlert("Eliminada", result.message || "Venta eliminada correctamente", "success");
           
-          // Recargar historial
-          if (tablaBody) {
-            loadSales();
+          // Recargar historial solo si ya hay una búsqueda activa
+          if (tablaBody.innerHTML !== "" && !mensajeInicial) {
+            loadSales(currentPage, getCurrentFilters());
           }
         } catch (error) {
           console.error("Error al eliminar venta:", error);
@@ -385,19 +387,28 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // 📦 Obtener ventas
-  async function loadSales() {
+  // 📦 Obtener ventas con paginación y filtros
+  async function loadSales(page = 1, filters = {}) {
     try {
       if (!tablaBody) return;
       
-      // Obtener el valor de búsqueda directamente por ID
-      const searchInput = document.getElementById("busquedaClienteVenta");
-      const query = searchInput ? searchInput.value.trim() : "";
+      // Mostrar spinner de carga
+      tablaBody.innerHTML = `<tr><td colspan="5" class="text-center"><div class="spinner-border" role="status"></div> Cargando ventas...</td></tr>`;
       
-      const url = query ? 
-        `/api/sales/search?query=${encodeURIComponent(query)}` : 
-        "/api/sales/list";
-
+      // Construir parámetros de búsqueda
+      const params = new URLSearchParams({
+        page: page,
+        per_page: itemsPerPage
+      });
+      
+      // Agregar filtros si existen
+      if (filters.cliente) params.append("cliente", filters.cliente);
+      if (filters.producto) params.append("producto", filters.producto);
+      if (filters.fechaInicio) params.append("fecha_inicio", filters.fechaInicio);
+      if (filters.fechaFin) params.append("fecha_fin", filters.fechaFin);
+      
+      const url = `/api/sales/search?${params.toString()}`;
+      
       const res = await fetch(url);
       
       if (!res.ok) {
@@ -405,28 +416,175 @@ document.addEventListener("DOMContentLoaded", () => {
         throw new Error(errorData.detail || `Error ${res.status}: ${res.statusText}`);
       }
       
-      const ventas = await res.json();
-      if (!Array.isArray(ventas)) throw new Error("Formato de respuesta inválido");
+      const data = await res.json();
+      
+      // Manejar diferentes formatos de respuesta
+      let ventas = [];
+      if (Array.isArray(data)) {
+        // Formato antiguo (sin paginación)
+        ventas = data;
+        totalVentas = data.length;
+      } else if (data.ventas && Array.isArray(data.ventas)) {
+        // Formato nuevo (con paginación)
+        ventas = data.ventas;
+        totalVentas = data.total;
+      } else {
+        throw new Error("Formato de respuesta inválido");
+      }
+      
+      if (!Array.isArray(ventas)) {
+        throw new Error("Formato de ventas inválido");
+      }
 
       renderSales(ventas);
+      renderPagination(page, totalVentas);
+      
+      // Ocultar mensaje inicial si existe
+      if (mensajeInicial) {
+        mensajeInicial.style.display = "none";
+      }
     } catch (err) {
       console.error("Error al cargar ventas:", err);
       showAlert("Error", "Error al cargar ventas: " + err.message, "error");
+      if (tablaBody) {
+        tablaBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Error al cargar datos</td></tr>`;
+      }
     }
   }
-
+  
+  // 🧩 Renderizar paginación
+  function renderPagination(currentPage, totalItems) {
+    const pagination = document.getElementById("paginacionVentas");
+    if (!pagination) return;
+    
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    pagination.innerHTML = "";
+    
+    if (totalPages <= 1) return;
+    
+    // Botón Anterior
+    const prevItem = document.createElement("li");
+    prevItem.className = `page-item ${currentPage === 1 ? "disabled" : ""}`;
+    prevItem.innerHTML = `<a class="page-link" href="#" data-page="${currentPage - 1}">&laquo;</a>`;
+    pagination.appendChild(prevItem);
+    
+    // Páginas
+    const startPage = Math.max(1, currentPage - 2);
+    const endPage = Math.min(totalPages, currentPage + 2);
+    
+    for (let i = startPage; i <= endPage; i++) {
+      const pageItem = document.createElement("li");
+      pageItem.className = `page-item ${i === currentPage ? "active" : ""}`;
+      pageItem.innerHTML = `<a class="page-link" href="#" data-page="${i}">${i}</a>`;
+      pagination.appendChild(pageItem);
+    }
+    
+    // Botón Siguiente
+    const nextItem = document.createElement("li");
+    nextItem.className = `page-item ${currentPage === totalPages ? "disabled" : ""}`;
+    nextItem.innerHTML = `<a class="page-link" href="#" data-page="${currentPage + 1}">&raquo;</a>`;
+    pagination.appendChild(nextItem);
+    
+    // Eventos de paginación
+    pagination.querySelectorAll(".page-link").forEach(link => {
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        const page = parseInt(link.dataset.page);
+        if (!isNaN(page)) {
+          currentPage = page;
+          loadSales(currentPage, getCurrentFilters());
+        }
+      });
+    });
+  }
+  
+  // 🧾 Obtener filtros actuales
+  function getCurrentFilters() {
+    const fechaInput = document.getElementById("filtroFecha");
+    let fechaInicio = "";
+    let fechaFin = "";
+    
+    if (fechaInput && fechaInput._flatpickr) {
+      const selectedDates = fechaInput._flatpickr.selectedDates;
+      if (selectedDates.length === 2) {
+        fechaInicio = selectedDates[0].toISOString().split('T')[0];
+        fechaFin = selectedDates[1].toISOString().split('T')[0];
+      }
+    }
+    
+    return {
+      cliente: document.getElementById("filtroCliente").value.trim(),
+      producto: document.getElementById("filtroProducto").value.trim(),
+      fechaInicio: fechaInicio,
+      fechaFin: fechaFin
+    };
+  }
+  
   // Inicialización final
   if (tablaBody) {
     // Configurar evento de búsqueda
-    const searchInput = document.getElementById("busquedaClienteVenta");
-    if (searchInput) {
-      searchInput.addEventListener("input", loadSales);
+    const filtroForm = document.getElementById("filtroVentasForm");
+    if (filtroForm) {
+      filtroForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        currentPage = 1;
+        loadSales(currentPage, getCurrentFilters());
+      });
     }
     
-    // Cargar ventas iniciales
-    loadSales();
+    // Configurar botón limpiar
+    const btnLimpiar = document.getElementById("btnLimpiarFiltros");
+    if (btnLimpiar) {
+      btnLimpiar.addEventListener("click", () => {
+        document.getElementById("filtroCliente").value = "";
+        document.getElementById("filtroProducto").value = "";
+        const fechaInput = document.getElementById("filtroFecha");
+        if (fechaInput && fechaInput._flatpickr) {
+          fechaInput._flatpickr.clear();
+        }
+        
+        // Restaurar mensaje inicial
+        if (mensajeInicial) {
+          mensajeInicial.style.display = "";
+          tablaBody.innerHTML = "";
+          tablaBody.appendChild(mensajeInicial);
+        }
+        
+        // Limpiar paginación
+        const pagination = document.getElementById("paginacionVentas");
+        if (pagination) pagination.innerHTML = "";
+      });
+    }
   }
 
   // ➕ Agregar el primer ítem al cargar la página
   addItemForm();
 });
+
+// Función para mostrar alertas con SweetAlert
+function showAlert(title, text, icon) {
+  Swal.fire({
+    title: title,
+    text: text,
+    icon: icon,
+    confirmButtonText: 'Aceptar'
+  });
+}
+
+// Función para confirmar acciones
+function confirmAction(message, callback) {
+  Swal.fire({
+    title: '¿Estás seguro?',
+    text: message,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#3085d6',
+    cancelButtonColor: '#d33',
+    confirmButtonText: 'Sí',
+    cancelButtonText: 'Cancelar'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      callback();
+    }
+  });
+}

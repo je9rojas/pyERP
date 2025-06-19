@@ -1,10 +1,10 @@
-# backend/routes/purchases.py
-from fastapi import APIRouter, HTTPException, Body
+# 📁 backend/routes/purchases.py
+from fastapi import APIRouter, HTTPException, Body, Query
 from pydantic import BaseModel
 from backend.database import get_database
 from bson import ObjectId
-from datetime import datetime
-from typing import List
+from datetime import datetime, timedelta
+from typing import List, Optional
 import logging
 
 router = APIRouter()
@@ -97,43 +97,6 @@ async def create_purchase(purchase: PurchaseCreate = Body(...)):
     
     return new_purchase
 
-# ===========================
-# 📋 Listar todas las compras
-# ===========================
-
-@router.get("/list")
-async def list_purchases():
-    db = get_database()
-    if db is None:
-        raise HTTPException(status_code=500, detail="Base de datos no disponible")
-    
-    compras = []
-    cursor = db["purchases"].find().sort("date", -1)
-
-    async for compra in cursor:
-        # Manejar compras sin items
-        items = compra.get("items", [])
-        
-        # Convertir ObjectId a string
-        compra["id"] = str(compra["_id"])
-        compra.pop("_id", None)
-        
-        # Obtener nombres de productos para cada ítem
-        for item in items:
-            # Manejar items sin product_id
-            product_id = item.get("product_id")
-            if product_id:
-                producto = await db["products"].find_one({"code": product_id})
-                item["product_name"] = producto["name"] if producto else "Desconocido"
-            else:
-                item["product_name"] = "Desconocido"
-        
-        # Asegurar que la compra tenga la estructura correcta
-        compra["items"] = items
-        compras.append(compra)
-
-    return compras
-
 # ========================================
 # ❌ Eliminar una compra y revertir el stock
 # ========================================
@@ -184,129 +147,87 @@ async def delete_purchase(purchase_id: str):
     return {"message": "✅ Compra eliminada correctamente"}
 
 # ====================================
-# ✏️ Actualizar una compra y el stock
-# ====================================
-
-@router.put("/{purchase_id}", response_model=PurchaseOut)
-async def update_purchase(purchase_id: str, updated: PurchaseCreate):
-    db = get_database()
-    if db is None:
-        raise HTTPException(status_code=500, detail="Base de datos no disponible")
-    
-    try:
-        object_id = ObjectId(purchase_id)
-    except:
-        raise HTTPException(status_code=400, detail="ID inválido")
-    
-    # Validar cada ítem
-    for item in updated.items:
-        if item.quantity <= 0:
-            raise HTTPException(status_code=400, detail=f"Cantidad inválida para el producto {item.product_id}")
-        if item.price < 0:
-            raise HTTPException(status_code=400, detail=f"Precio inválido para el producto {item.product_id}")
-
-    compra = await db["purchases"].find_one({"_id": object_id})
-    if not compra:
-        raise HTTPException(status_code=404, detail="Compra no encontrada")
-
-    # Calcular diferencias por producto
-    diferencias = {}
-    old_items = compra.get("items", [])
-    
-    for old_item in old_items:
-        pid = old_item.get("product_id")
-        if pid:
-            diferencias[pid] = diferencias.get(pid, 0) - old_item.get("quantity", 0)
-    
-    for new_item in updated.items:
-        pid = new_item.product_id
-        diferencias[pid] = diferencias.get(pid, 0) + new_item.quantity
-        
-        # Verificar stock si se aumenta la cantidad
-        if diferencias[pid] > 0:
-            producto = await db["products"].find_one({"code": pid})
-            if not producto:
-                raise HTTPException(status_code=404, detail=f"Producto {pid} no encontrado")
-            
-            stock_actual = producto.get("stock", 0)
-            if stock_actual < diferencias[pid]:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Stock insuficiente para {pid}. Disponible: {stock_actual}"
-                )
-
-    # Actualizar compra
-    updated_data = updated.dict()
-    updated_data["date"] = compra.get("date", datetime.utcnow())
-    
-    await db["purchases"].update_one(
-        {"_id": object_id},
-        {"$set": updated_data}
-    )
-
-    # Actualizar stock y registrar en historial
-    for pid, diferencia in diferencias.items():
-        if diferencia != 0:
-            # Actualizar stock
-            await db["products"].update_one(
-                {"code": pid},
-                {"$inc": {"stock": diferencia}}
-            )
-
-            # Registrar en historial
-            await db["stock_history"].insert_one({
-                "product_id": pid,
-                "change": diferencia,
-                "reason": "edición compra",
-                "date": datetime.utcnow()
-            })
-
-    # Obtener la compra actualizada
-    updated_purchase = await db["purchases"].find_one({"_id": object_id})
-    updated_purchase["id"] = str(updated_purchase["_id"])
-    updated_purchase.pop("_id", None)
-    
-    return updated_purchase
-
-# ====================================
-# 🔍 Buscar compras por proveedor o producto
+# 🔍 Buscar compras con paginación y filtros (OPTIMIZADO)
 # ====================================
 
 @router.get("/search")
-async def search_purchases(query: str = ""):
+async def search_purchases(
+    proveedor: Optional[str] = Query(None),
+    producto: Optional[str] = Query(None),
+    fecha_inicio: Optional[str] = Query(None),
+    fecha_fin: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(10, ge=1, le=100)
+):
     db = get_database()
     if db is None:
         raise HTTPException(status_code=500, detail="Base de datos no disponible")
     
-    # Buscar por proveedor o ID de producto
-    filtro = {
-        "$or": [
-            {"supplier": {"$regex": query, "$options": "i"}},
-            {"items.product_id": {"$regex": query, "$options": "i"}},
-            {"items.product_name": {"$regex": query, "$options": "i"}}
-        ]
-    }
+    # Construir el filtro
+    filtro = {}
     
-    cursor = db["purchases"].find(filtro).sort("date", -1)
+    if proveedor:
+        filtro["supplier"] = {"$regex": proveedor, "$options": "i"}
+    
+    if producto:
+        # Buscar por código de producto en los items
+        filtro["items.product_id"] = {"$regex": producto, "$options": "i"}
+    
+    if fecha_inicio and fecha_fin:
+        try:
+            # Convertir fechas a datetime
+            start_date = datetime.strptime(fecha_inicio, "%Y-%m-%d")
+            end_date = datetime.strptime(fecha_fin, "%Y-%m-%d") + timedelta(days=1)  # Incluir todo el día final
+            filtro["date"] = {"$gte": start_date, "$lte": end_date}
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Formato de fecha inválido: {str(e)}")
+    
+    # Solo contar y buscar si hay filtros aplicados
+    if not filtro:
+        return {
+            "compras": [],
+            "total": 0,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": 0
+        }
+    
+    # Contar total de documentos que coinciden
+    total = await db["purchases"].count_documents(filtro)
+    
+    # Calcular el número de páginas
+    total_pages = (total + per_page - 1) // per_page if total > 0 else 0
+    
+    # Obtener las compras con paginación
+    skip = (page - 1) * per_page
+    cursor = db["purchases"].find(filtro).sort("date", -1).skip(skip).limit(per_page)
+    
     resultados = []
-
     async for compra in cursor:
         # Convertir ObjectId a string
         compra["id"] = str(compra["_id"])
         compra.pop("_id", None)
         
-        # Obtener nombres de productos
+        # Obtener nombres de productos para cada ítem
         items = compra.get("items", [])
         for item in items:
             product_id = item.get("product_id")
             if product_id:
                 producto = await db["products"].find_one({"code": product_id})
                 item["product_name"] = producto["name"] if producto else "Desconocido"
+            else:
+                item["product_name"] = "Desconocido"
         
         compra["items"] = items
         resultados.append(compra)
 
-    return resultados
+    return {
+        "compras": resultados,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": total_pages
+    }
 
 # ====================================
 # 🔍 Obtener detalles de una compra por ID
@@ -340,3 +261,49 @@ async def get_purchase_details(purchase_id: str):
             item["product_name"] = producto["name"] if producto else "Desconocido"
     
     return compra
+
+# ==================================================
+# 📜 Ver historial de stock (opcional, no crítico)
+# ==================================================
+
+@router.get("/stock-history")
+async def ver_historial(page: int = Query(1, ge=1), per_page: int = Query(10, ge=1, le=50)):
+    db = get_database()
+    if db is None:
+        raise HTTPException(status_code=500, detail="Base de datos no disponible")
+    
+    skip = (page - 1) * per_page
+    
+    pipeline = [
+        {
+            "$lookup": {
+                "from": "products",
+                "localField": "product_id",
+                "foreignField": "code",
+                "as": "producto"
+            }
+        },
+        {"$unwind": {"path": "$producto", "preserveNullAndEmptyArrays": True}},
+        {"$sort": {"date": -1}},
+        {"$skip": skip},
+        {"$limit": per_page},
+        {
+            "$project": {
+                "_id": 0,
+                "id": {"$toString": "$_id"},
+                "product_id": 1,
+                "product_name": "$producto.name",
+                "change": 1,
+                "reason": 1,
+                "date": 1
+            }
+        }
+    ]
+
+    historial = []
+    cursor = db["stock_history"].aggregate(pipeline)
+    
+    async for movimiento in cursor:
+        historial.append(movimiento)
+
+    return historial

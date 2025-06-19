@@ -1,7 +1,11 @@
 document.addEventListener("DOMContentLoaded", () => {
     const inventoryBody = document.getElementById("inventoryBody");
-    const historyBody = document.getElementById("historyBody");
     const searchInput = document.getElementById("searchInventory");
+    
+    // Cache para inventario
+    let inventoryCache = null;
+    let lastFetchTime = 0;
+    const CACHE_TTL = 300000; // 5 minutos
     
     // Cargar inventario inicial
     fetchInventory();
@@ -12,16 +16,27 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     
     async function fetchInventory() {
+        // Usar caché si está disponible y vigente
+        const now = Date.now();
+        if (inventoryCache && (now - lastFetchTime) < CACHE_TTL) {
+            renderInventory(inventoryCache);
+            return;
+        }
+        
         try {
-            // Mostrar estado de carga
             showLoading(true);
             
             const response = await fetch("/api/inventory/list");
-            const inventory = await response.json();
+            if (!response.ok) throw new Error("Error en la respuesta del servidor");
             
+            const inventory = await response.json();
             if (!Array.isArray(inventory)) {
                 throw new Error("Formato de respuesta inválido");
             }
+            
+            // Actualizar caché
+            inventoryCache = inventory;
+            lastFetchTime = Date.now();
             
             renderInventory(inventory);
         } catch (error) {
@@ -33,24 +48,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     
     function renderInventory(inventory) {
-        // Limpiar tablas
         inventoryBody.innerHTML = "";
-        historyBody.innerHTML = "";
         
         // Ordenar por stock (de menor a mayor)
         inventory.sort((a, b) => a.current_stock - b.current_stock);
         
-        // Contador para movimientos recientes
-        let recentMovements = 0;
-        const maxRecentMovements = 10;
-        
         inventory.forEach(item => {
-            // Determinar clase CSS según stock
             let stockClass = "bg-success";
             if (item.current_stock <= 3) stockClass = "bg-danger";
             else if (item.current_stock <= 10) stockClass = "bg-warning";
             
-            // Fila de inventario (BOTÓN CORREGIDO CON TEXTO)
             const row = document.createElement("tr");
             row.innerHTML = `
                 <td class="text-center fw-bold">${item.code}</td>
@@ -69,32 +76,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 </td>
             `;
             inventoryBody.appendChild(row);
-            
-            // Historial (últimos movimientos - CAMPOS CORREGIDOS)
-            item.history.forEach(movement => {
-                if (recentMovements < maxRecentMovements) {
-                    const movementType = getMovementType(movement.type);  // Usar type en lugar de reason
-                    const movementClass = movement.quantity > 0 ? "text-success" : "text-danger";  // Usar quantity en lugar de change
-                    
-                    const historyRow = document.createElement("tr");
-                    historyRow.innerHTML = `
-                        <td>${item.code} - ${item.name}</td>
-                        <td class="text-center">${movementType}</td>
-                        <td class="text-center ${movementClass} fw-bold">
-                            ${movement.quantity > 0 ? '+' : ''}${movement.quantity}
-                        </td>
-                        <td class="text-center">${formatDate(movement.date)}</td>
-                    `;
-                    historyBody.appendChild(historyRow);
-                    recentMovements++;
-                }
-            });
-        });
-        
-        // Inicializar tooltips
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList.map(tooltipTriggerEl => {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
         });
         
         // Eventos para botones de historial
@@ -107,25 +88,24 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     
     function filterInventory(query) {
+        if (!inventoryCache) return;
+        
         const rows = inventoryBody.querySelectorAll("tr");
         let visibleCount = 0;
         
         rows.forEach(row => {
-            if (row.cells.length > 1) { // Ignorar filas de carga
-                const code = row.cells[0].textContent.toLowerCase();
-                const name = row.cells[1].textContent.toLowerCase();
-                const text = `${code} ${name}`;
-                
-                if (text.includes(query.toLowerCase())) {
-                    row.style.display = "";
-                    visibleCount++;
-                } else {
-                    row.style.display = "none";
-                }
+            const code = row.cells[0].textContent.toLowerCase();
+            const name = row.cells[1].textContent.toLowerCase();
+            const text = `${code} ${name}`;
+            
+            if (text.includes(query.toLowerCase())) {
+                row.style.display = "";
+                visibleCount++;
+            } else {
+                row.style.display = "none";
             }
         });
         
-        // Mostrar mensaje si no hay resultados
         if (visibleCount === 0 && query) {
             inventoryBody.innerHTML = `
                 <tr>
@@ -150,25 +130,9 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
     
-    function getMovementType(type) {
-        // MANEJO MEJORADO DE VALORES NO DEFINIDOS
-        if (!type) type = "unknown";
-        
-        const types = {
-            "purchase": "<span class='badge bg-success'><i class='bi bi-cart-plus'></i> Compra</span>",
-            "sale": "<span class='badge bg-primary'><i class='bi bi-cart-dash'></i> Venta</span>",
-            "purchase_edit": "<span class='badge bg-warning'><i class='bi bi-pencil'></i> Ajuste Compra</span>",
-            "sale_edit": "<span class='badge bg-warning'><i class='bi bi-pencil'></i> Ajuste Venta</span>",
-            "reversión venta": "<span class='badge bg-info'><i class='bi bi-arrow-counterclockwise'></i> Reversión</span>",
-            "unknown": "<span class='badge bg-secondary'>Desconocido</span>"
-        };
-        
-        return types[type] || `<span class='badge bg-secondary'>${type}</span>`;
-    }
-    
     async function viewFullHistory(productCode) {
         try {
-            // Mostrar loader en el modal
+            // Mostrar loader
             Swal.fire({
                 title: `Cargando historial: ${productCode}`,
                 html: '<div class="spinner-border text-primary" role="status"></div>',
@@ -177,6 +141,8 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             
             const response = await fetch(`/api/inventory/history?product_id=${productCode}`);
+            if (!response.ok) throw new Error("Error en la respuesta del servidor");
+            
             const history = await response.json();
             
             if (history.length === 0) {
@@ -212,7 +178,7 @@ document.addEventListener("DOMContentLoaded", () => {
             
             historyHTML += "</tbody></table></div>";
             
-            // Mostrar modal con historial
+            // Mostrar modal
             Swal.fire({
                 title: `Historial completo: ${productCode}`,
                 html: historyHTML,
@@ -227,6 +193,21 @@ document.addEventListener("DOMContentLoaded", () => {
             console.error("Error al obtener historial:", error);
             showAlert("Error al cargar historial", "error");
         }
+    }
+    
+    function getMovementType(type) {
+        if (!type) type = "unknown";
+        
+        const types = {
+            "purchase": "<span class='badge bg-success'><i class='bi bi-cart-plus'></i> Compra</span>",
+            "sale": "<span class='badge bg-primary'><i class='bi bi-cart-dash'></i> Venta</span>",
+            "purchase_edit": "<span class='badge bg-warning'><i class='bi bi-pencil'></i> Ajuste Compra</span>",
+            "sale_edit": "<span class='badge bg-warning'><i class='bi bi-pencil'></i> Ajuste Venta</span>",
+            "reversión venta": "<span class='badge bg-info'><i class='bi bi-arrow-counterclockwise'></i> Reversión</span>",
+            "unknown": "<span class='badge bg-secondary'>Desconocido</span>"
+        };
+        
+        return types[type] || `<span class='badge bg-secondary'>${type}</span>`;
     }
     
     function showAlert(message, type = "success") {
@@ -256,17 +237,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     </td>
                 </tr>
             `;
-            
-            historyBody.innerHTML = `
-                <tr>
-                    <td colspan="4" class="text-center py-4">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Cargando...</span>
-                        </div>
-                        <p class="mt-2 mb-0">Cargando movimientos...</p>
-                    </td>
-                </tr>
-            `;
+        } else if (inventoryBody.innerHTML.includes("spinner-border")) {
+            // Solo limpiar si está mostrando el spinner
+            inventoryBody.innerHTML = "";
         }
     }
 });
