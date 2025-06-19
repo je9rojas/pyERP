@@ -4,52 +4,76 @@
 {% block title %}Gestión de Ventas{% endblock %}
 
 {% block content %}
-<h1>📦 Gestión de Ventas</h1>
+<link rel="stylesheet" href="{{ url_for('static', path='css/estilos.css') }}">
 
-<section>
-  <h2>➕ Registrar Venta</h2>
-  <form id="ventaForm">
-    <label for="product_id">🆔 ID del Producto:</label>
-    <input type="text" id="product_id" name="product_id" required><br>
-
-    <label for="quantity">📦 Cantidad:</label>
-    <input type="number" id="quantity" name="quantity" min="1" required><br>
-
-    <label for="price">💰 Precio:</label>
-    <input type="number" id="price" name="price" step="0.01" min="0" required><br>
-
-    <button type="submit">Registrar Venta</button>
-  </form>
-  <div id="message" style="margin-top: 1rem;"></div>
-</section>
-
-<hr>
-
-<section>
-  <h2>🔍 Buscar Ventas</h2>
-  <input type="text" id="busquedaProductoVenta" placeholder="ID de producto">
-  <input type="number" id="busquedaCantidadVenta" placeholder="Cantidad">
-  <input type="number" id="busquedaPrecioVenta" placeholder="Precio">
-</section>
-
-<hr>
-
-<section>
-  <h2>📋 Listado de Ventas</h2>
-  <table id="tablaVentas" border="1">
-    <thead>
-      <tr>
-        <th>🆔 Código</th>
-        <th>📛 Nombre</th>
-        <th>📦 Cantidad</th>
-        <th>💰 Precio</th>
-        <th>⚙️ Acciones</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</section>
+<div class="container">
+  <h1 class="my-4">💰 Gestión de Ventas</h1>
+  
+  <!-- Formulario de venta -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5>Registrar Nueva Venta</h5>
+    </div>
+    <div class="card-body">
+      <form id="ventaForm">
+        <div class="mb-3">
+          <label for="client" class="form-label">Cliente</label>
+          <input type="text" class="form-control" id="client" placeholder="Nombre del cliente" required>
+        </div>
+        
+        <h6 class="mt-4 mb-3">Productos:</h6>
+        <div id="itemsContainer"></div>
+        
+        <button type="button" id="addItemBtn" class="btn btn-outline-primary mb-3">
+          <i class="bi bi-plus-circle"></i> Agregar Producto
+        </button>
+        
+        <div class="d-flex justify-content-end align-items-center mb-3">
+          <h5 class="me-3">Total:</h5>
+          <h3 id="totalVenta">0.00</h3>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-save"></i> Registrar Venta
+        </button>
+      </form>
+      <div id="message" class="mt-3"></div>
+    </div>
+  </div>
+  
+  <!-- Búsqueda y tabla de ventas -->
+  <div class="card">
+    <div class="card-header">
+      <div class="row">
+        <div class="col-md-6">
+          <h5 class="mb-0">Historial de Ventas</h5>
+        </div>
+        <div class="col-md-6 text-end">
+          <input type="text" id="busquedaClienteVenta" class="form-control" placeholder="Buscar por cliente...">
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table" id="tablaVentas">
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Productos</th>
+              <th>Total</th>
+              <th>Fecha</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Las ventas se cargarán aquí -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="/static/js/ventas.js"></script>
+<script src="{{ url_for('static', path='js/ventas.js') }}"></script>
 {% endblock %}

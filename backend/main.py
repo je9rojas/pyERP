@@ -1,9 +1,13 @@
+# 📁 backend/routes/main.py
+
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import logging
-import datetime  # Importar datetime para el dashboard
+import datetime
+import traceback
+import os
 from backend.database import connect_to_mongodb, close_mongodb_connection
 
 # Configurar logging
@@ -11,6 +15,10 @@ logger = logging.getLogger("uvicorn")
 logger.setLevel(logging.INFO)
 
 app = FastAPI()
+
+# Obtener la ruta base del proyecto - SOLUCIÓN CORREGIDA
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Sube un nivel
+FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")  # Ahora apunta a pyERP/frontend
 
 # Eventos de inicio/cierre
 @app.on_event("startup")
@@ -24,12 +32,27 @@ async def shutdown_event():
     logger.info("Deteniendo aplicación...")
     await close_mongodb_connection()
 
-# Configuración para servir archivos estáticos
-app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
-templates = Jinja2Templates(directory="frontend/templates")
+# Configuración para servir archivos estáticos - VERIFICAR QUE EL DIRECTORIO EXISTA
+static_dir = os.path.join(FRONTEND_DIR, "static")
+templates_dir = os.path.join(FRONTEND_DIR, "templates")
+
+# Verificar que los directorios existen antes de montarlos
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+else:
+    logger.error(f"¡Directorio estático no encontrado: {static_dir}")
+
+if os.path.exists(templates_dir):
+    templates = Jinja2Templates(directory=templates_dir)
+else:
+    logger.error(f"¡Directorio de templates no encontrado: {templates_dir}")
+    # Crear un objeto templates vacío para evitar errores
+    templates = Jinja2Templates(directory="")
 
 # Añadir variables globales a todos los templates
 templates.env.globals["current_year"] = datetime.datetime.now().year
+# Función para generar URLs estáticas
+templates.env.globals["static_url"] = lambda filename: f"/static/{filename}"
 
 # Middleware para manejar errores
 @app.middleware("http")
@@ -39,6 +62,7 @@ async def add_process_time_header(request: Request, call_next):
         return response
     except Exception as e:
         logger.error(f"Error no controlado: {str(e)}")
+        logger.error(traceback.format_exc())
         return JSONResponse(
             status_code=500,
             content={"error": "Internal server error", "details": str(e)}
@@ -48,28 +72,71 @@ async def add_process_time_header(request: Request, call_next):
 @app.get("/", response_class=HTMLResponse)
 @app.get("/dashboard", response_class=HTMLResponse)
 async def serve_dashboard(request: Request):
-    return templates.TemplateResponse("dashboard.html", {
-        "request": request,
-        "fecha_actual": datetime.datetime.now().strftime("%d/%m/%Y")
-    })
+    try:
+        return templates.TemplateResponse("dashboard.html", {
+            "request": request,
+            "fecha_actual": datetime.datetime.now().strftime("%d/%m/%Y")
+        })
+    except Exception as e:
+        logger.error(f"Error al cargar dashboard: {str(e)}")
+        logger.error(traceback.format_exc())
+        return RedirectResponse(url="/ventas")
 
 # Ruta para registro de productos
 @app.get("/registro-productos", response_class=HTMLResponse)
 async def serve_registro_productos(request: Request):
-    return templates.TemplateResponse("registro_productos.html", {"request": request})
+    try:
+        return templates.TemplateResponse("registro_productos.html", {"request": request})
+    except Exception as e:
+        logger.error(f"Error al cargar registro productos: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Error al cargar página"}
+        )
 
 # Rutas para las demás páginas
 @app.get("/ventas", response_class=HTMLResponse)
 async def serve_ventas(request: Request):
-    return templates.TemplateResponse("ventas.html", {"request": request})
+    try:
+        return templates.TemplateResponse("ventas.html", {"request": request})
+    except Exception as e:
+        logger.error(f"Error al cargar ventas: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Error al cargar página de ventas"}
+        )
 
 @app.get("/compras", response_class=HTMLResponse)
 async def serve_compras(request: Request):
-    return templates.TemplateResponse("compras.html", {"request": request})
+    try:
+        return templates.TemplateResponse("compras.html", {"request": request})
+    except Exception as e:
+        logger.error(f"Error al cargar compras: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Error al cargar página de compras"}
+        )
 
 @app.get("/inventario", response_class=HTMLResponse)
 async def serve_inventario(request: Request):
-    return templates.TemplateResponse("inventario.html", {"request": request})
+    try:
+        return templates.TemplateResponse("inventario.html", {"request": request})
+    except Exception as e:
+        logger.error(f"Error al cargar inventario: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Error al cargar página de inventario"}
+        )
+
+# Favicon para evitar errores
+@app.get('/favicon.ico', include_in_schema=False)
+async def favicon():
+    favicon_path = os.path.join(FRONTEND_DIR, "static", "favicon.ico")
+    if os.path.exists(favicon_path):
+        return FileResponse(favicon_path)
+    else:
+        logger.warning("Favicon no encontrado, devolviendo respuesta vacía")
+        return FileResponse("")
 
 # Health check
 @app.get("/health")
@@ -86,11 +153,14 @@ try:
     logger.info("Routers API cargados correctamente")
 except ImportError as e:
     logger.error(f"Error al cargar routers: {str(e)}")
-    import traceback
-    logger.error(traceback.format_exc())  # Traza detallada
+    logger.error(traceback.format_exc())
 except Exception as e:
     logger.error(f"Error inesperado al cargar routers: {str(e)}")
-    import traceback
     logger.error(traceback.format_exc())
+
+# Manejo de errores para rutas no encontradas
+@app.exception_handler(404)
+async def not_found_exception_handler(request: Request, exc: Exception):
+    return templates.TemplateResponse("404.html", {"request": request}, status_code=404)
 
 logger.info("Aplicación FastAPI completamente inicializada")

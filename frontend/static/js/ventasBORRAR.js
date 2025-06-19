@@ -2,6 +2,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   // Selección de elementos esenciales
   const form = document.getElementById("ventaForm");
+  const messageDiv = document.getElementById("message");
   const itemsContainer = document.getElementById("itemsContainer");
   const addItemBtn = document.getElementById("addItemBtn");
   const totalElement = document.getElementById("totalVenta");
@@ -9,7 +10,6 @@ document.addEventListener("DOMContentLoaded", () => {
   // Verificar solo elementos absolutamente esenciales
   if (!form || !itemsContainer || !addItemBtn || !totalElement) {
     console.error("Elementos esenciales no encontrados en el DOM");
-    showAlert("Error", "Elementos esenciales no encontrados en el DOM", "error");
     return;
   }
 
@@ -97,7 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const client = document.getElementById("client").value.trim();
     if (!client) {
-      showAlert("Error", "Debe ingresar un cliente", "error");
+      Swal.fire("❌ Error", "Debe ingresar un cliente", "error");
       return;
     }
 
@@ -111,7 +111,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const price = parseFloat(itemForm.querySelector(".price").value);
       
       if (!productCode || isNaN(quantity) || isNaN(price)) {
-        showAlert("Error", "Datos incompletos en los ítems", "error");
+        Swal.fire("❌ Error", "Datos incompletos en los ítems", "error");
         return;
       }
       
@@ -123,7 +123,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     
     if (items.length === 0) {
-      showAlert("Error", "Debe agregar al menos un producto", "error");
+      Swal.fire("❌ Error", "Debe agregar al menos un producto", "error");
       return;
     }
 
@@ -146,7 +146,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const result = await res.json();
       
       if (res.ok) {
-        showAlert("Éxito", "Venta registrada con éxito", "success");
+        Swal.fire({
+          title: "✅ Éxito",
+          text: "Venta registrada con éxito",
+          icon: "success"
+        });
         
         // Resetear formulario
         form.reset();
@@ -162,11 +166,11 @@ document.addEventListener("DOMContentLoaded", () => {
         addItemForm();
       } else {
         const errorMsg = result.detail || "Error desconocido";
-        showAlert("Error", errorMsg, "error");
+        Swal.fire("❌ Error", errorMsg, "error");
       }
     } catch (error) {
       console.error("Error al registrar venta:", error);
-      showAlert("Error", "Error de conexión: " + error.message, "error");
+      Swal.fire("❌ Error", "Error de conexión: " + error.message, "error");
     }
   });
 
@@ -325,38 +329,47 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     } catch (error) {
       console.error("Error al obtener detalles de la venta:", error);
-      showAlert("Error", "No se pudieron cargar los detalles: " + error.message, "error");
+      Swal.fire("❌ Error", "No se pudieron cargar los detalles: " + error.message, "error");
     }
   }
 
   // 🗑️ Eliminar venta
   async function deleteSale(id) {
     try {
-      // Usamos confirmAction para la confirmación
-      confirmAction("¿Eliminar venta? Esta acción es irreversible y revertirá el stock de productos", async () => {
-        try {
-          const res = await fetch(`/api/sales/${id}`, { method: "DELETE" });
-          
-          if (!res.ok) {
-            const errorData = await res.json();
-            throw new Error(errorData.detail || `Error ${res.status}: ${res.statusText}`);
-          }
-          
-          const result = await res.json();
-          
-          showAlert("Eliminada", result.message || "Venta eliminada correctamente", "success");
-          
-          // Recargar historial
-          if (tablaBody) {
-            loadSales();
-          }
-        } catch (error) {
-          console.error("Error al eliminar venta:", error);
-          showAlert("Error", "Error al eliminar: " + error.message, "error");
-        }
+      const confirm = await Swal.fire({
+        title: "¿Eliminar venta?",
+        text: "Esta acción es irreversible y revertirá el stock de productos",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Sí, eliminar",
+        cancelButtonText: "Cancelar",
+        confirmButtonColor: "#dc3545"
       });
+
+      if (!confirm.isConfirmed) return;
+
+      const res = await fetch(`/api/sales/${id}`, { method: "DELETE" });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.detail || `Error ${res.status}: ${res.statusText}`);
+      }
+      
+      const result = await res.json();
+      
+      Swal.fire({
+        title: "✅ Eliminada",
+        text: result.message || "Venta eliminada correctamente",
+        icon: "success"
+      });
+      
+      // Recargar historial
+      if (tablaBody) {
+        loadSales();
+      }
     } catch (error) {
-      console.error("Error en la confirmación:", error);
+      console.error("Error al eliminar venta:", error);
+      Swal.fire("❌ Error", "Error al eliminar: " + error.message, "error");
     }
   }
 
@@ -386,7 +399,9 @@ document.addEventListener("DOMContentLoaded", () => {
       renderSales(ventas);
     } catch (err) {
       console.error("Error al cargar ventas:", err);
-      showAlert("Error", "Error al cargar ventas: " + err.message, "error");
+      if (messageDiv) {
+        messageDiv.textContent = "❌ Error al cargar ventas: " + err.message;
+      }
     }
   }
 

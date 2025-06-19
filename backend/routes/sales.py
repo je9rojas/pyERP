@@ -38,12 +38,11 @@ async def test_sales():
     return {"message": "✅ Ruta de ventas funcionando correctamente"}
 
 # ===========================
-# ✅ Crear una nueva venta (CORREGIDO)
+# ✅ Crear una nueva venta
 # ===========================
 
 @router.post("/", response_model=SaleOut)
 async def create_sale(sale: SaleCreate = Body(...)):
-    # Obtener la base de datos
     db = get_database()
     if db is None:
         raise HTTPException(status_code=500, detail="Base de datos no disponible")
@@ -107,7 +106,7 @@ async def create_sale(sale: SaleCreate = Body(...)):
     return new_sale
 
 # ===========================
-# 📋 Listar todas las ventas
+# 📋 Listar todas las ventas (CORREGIDO)
 # ===========================
 
 @router.get("/list")
@@ -120,16 +119,25 @@ async def list_sales():
     cursor = db["sales"].find().sort("date", -1)
 
     async for venta in cursor:
+        # Manejar ventas sin items
+        items = venta.get("items", [])
+        
         # Convertir ObjectId a string
         venta["id"] = str(venta["_id"])
         venta.pop("_id", None)
         
-        # Obtener información de productos para cada ítem
-        for item in venta["items"]:
-            producto = await db["products"].find_one({"code": item["product_id"]})
-            item["product_name"] = producto["name"] if producto else "Desconocido"
-            item["product_code"] = item["product_id"]
+        # Obtener nombres de productos para cada ítem
+        for item in items:
+            # Manejar items sin product_id
+            product_id = item.get("product_id")
+            if product_id:
+                producto = await db["products"].find_one({"code": product_id})
+                item["product_name"] = producto["name"] if producto else "Desconocido"
+            else:
+                item["product_name"] = "Desconocido"
         
+        # Asegurar que la venta tenga la estructura correcta
+        venta["items"] = items
         ventas.append(venta)
 
     return ventas
@@ -154,25 +162,25 @@ async def delete_sale(sale_id: str):
         raise HTTPException(status_code=404, detail="Venta no encontrada")
 
     # Revertir stock para cada ítem
-    for item in venta["items"]:
-        producto = await db["products"].find_one({"code": item["product_id"]})
-        if not producto:
-            logger.warning(f"Producto no encontrado al revertir venta: {item['product_id']}")
-            continue
+    items = venta.get("items", [])
+    for item in items:
+        product_id = item.get("product_id")
+        quantity = item.get("quantity", 0)
+        
+        if product_id and quantity > 0:
+            # Revertir stock
+            await db["products"].update_one(
+                {"code": product_id},
+                {"$inc": {"stock": quantity}}
+            )
 
-        # Revertir stock
-        await db["products"].update_one(
-            {"code": item["product_id"]},
-            {"$inc": {"stock": item["quantity"]}}
-        )
-
-        # Registrar en historial
-        await db["stock_history"].insert_one({
-            "product_id": item["product_id"],
-            "change": item["quantity"],
-            "reason": "reversión venta",
-            "date": datetime.utcnow()
-        })
+            # Registrar en historial
+            await db["stock_history"].insert_one({
+                "product_id": product_id,
+                "change": quantity,
+                "reason": "reversión venta",
+                "date": datetime.utcnow()
+            })
 
     # Eliminar venta
     delete_result = await db["sales"].delete_one({"_id": object_id})
@@ -211,9 +219,12 @@ async def update_sale(sale_id: str, updated: SaleCreate):
 
     # Calcular diferencias por producto
     diferencias = {}
-    for old_item in venta["items"]:
-        pid = old_item["product_id"]
-        diferencias[pid] = diferencias.get(pid, 0) - old_item["quantity"]
+    old_items = venta.get("items", [])
+    
+    for old_item in old_items:
+        pid = old_item.get("product_id")
+        if pid:
+            diferencias[pid] = diferencias.get(pid, 0) - old_item.get("quantity", 0)
     
     for new_item in updated.items:
         pid = new_item.product_id
@@ -266,7 +277,7 @@ async def update_sale(sale_id: str, updated: SaleCreate):
     return updated_sale
 
 # ====================================
-# 🔍 Buscar ventas por ID de producto
+# 🔍 Buscar ventas por cliente o producto
 # ====================================
 
 @router.get("/search")
@@ -275,7 +286,7 @@ async def search_sales(query: str = ""):
     if db is None:
         raise HTTPException(status_code=500, detail="Base de datos no disponible")
     
-    # Buscar por ID de cliente o ID de producto
+    # Buscar por cliente o ID de producto
     filtro = {
         "$or": [
             {"client": {"$regex": query, "$options": "i"}},
@@ -291,18 +302,21 @@ async def search_sales(query: str = ""):
         venta["id"] = str(venta["_id"])
         venta.pop("_id", None)
         
-        # Obtener información de productos para cada ítem
-        for item in venta["items"]:
-            producto = await db["products"].find_one({"code": item["product_id"]})
-            item["product_name"] = producto["name"] if producto else "Desconocido"
-            item["product_code"] = item["product_id"]
+        # Obtener nombres de productos
+        items = venta.get("items", [])
+        for item in items:
+            product_id = item.get("product_id")
+            if product_id:
+                producto = await db["products"].find_one({"code": product_id})
+                item["product_name"] = producto["name"] if producto else "Desconocido"
         
+        venta["items"] = items
         resultados.append(venta)
 
     return resultados
 
 # ==================================================
-# 📜 Ver historial de stock (con nombre del producto)
+# 📜 Ver historial de stock
 # ==================================================
 
 @router.get("/stock-history")

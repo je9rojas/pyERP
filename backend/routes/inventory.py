@@ -1,3 +1,5 @@
+# 📁 backend/routes/inventory.py
+
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 from backend.database import get_database

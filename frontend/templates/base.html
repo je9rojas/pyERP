@@ -1,4 +1,3 @@
-<!-- frontend/templates/base.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -13,14 +12,45 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     
     <!-- Estilos personalizados -->
-    <link rel="stylesheet" href="/static/css/estilos.css">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/estilos.css') }}">
     
     <!-- Favicon -->
-    <link rel="icon" href="data:;base64,iVBORw0KGgo="> <!-- Favicon vacío para evitar errores -->
+    <link rel="icon" href="{{ url_for('static', path='favicon.ico') }}">
+    
+    <!-- Scripts globales -->
+    <script>
+        // Función para mostrar alertas usando SweetAlert
+        function showAlert(title, message, icon) {
+            Swal.fire({
+                title: title,
+                text: message,
+                icon: icon,
+                confirmButtonText: 'Aceptar'
+            });
+        }
+        
+        // Función para confirmar acciones
+        function confirmAction(message, callback) {
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: message,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Sí',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    callback();
+                }
+            });
+        }
+    </script>
 </head>
 <body>
     <!-- Barra de navegación -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top">
         <div class="container-fluid">
             <a class="navbar-brand" href="/">
                 <i class="bi bi-building me-1"></i> Mi ERP
@@ -31,27 +61,27 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="/">
+                        <a class="nav-link {{ 'active' if request.url.path == '/' else '' }}" href="/">
                             <i class="bi bi-house-door me-1"></i> Inicio
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/registro-productos">
+                        <a class="nav-link {{ 'active' if request.url.path == '/registro-productos' else '' }}" href="/registro-productos">
                             <i class="bi bi-box-seam me-1"></i> Registrar Productos
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/inventario">
+                        <a class="nav-link {{ 'active' if request.url.path == '/inventario' else '' }}" href="/inventario">
                             <i class="bi bi-clipboard-data me-1"></i> Inventario
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/compras">
+                        <a class="nav-link {{ 'active' if request.url.path == '/compras' else '' }}" href="/compras">
                             <i class="bi bi-cart-plus me-1"></i> Compras
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/ventas">
+                        <a class="nav-link {{ 'active' if request.url.path == '/ventas' else '' }}" href="/ventas">
                             <i class="bi bi-currency-dollar me-1"></i> Ventas
                         </a>
                     </li>
@@ -69,6 +99,9 @@
     </nav>
 
     <main class="container py-4">
+        <!-- Mensajes de alerta (reemplazo para get_flashed_messages) -->
+        <div id="flash-messages" class="mb-4"></div>
+        
         {% block content %}{% endblock %}
     </main>
 
@@ -83,6 +116,9 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
     <!-- Scripts específicos de página -->
     {% block scripts %}{% endblock %}
