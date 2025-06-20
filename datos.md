@@ -1,26 +1,32 @@
-erp/
-│
-├── backend/
-│   ├── main.py
-│   ├── database.py
-│   ├── models/
-│   ├── routes/
-│   └── crud/
-│
-├── frontend/
-│   ├── js/
-│   ├── css/
-│   └── templates/
-        ├── index.html
-        ├── ventas.html
-        ├── compras.html
-
-│
-├── .env               
-├── requirements.txt
-├── render.yaml           ✅
-└── README.md
-
+backend/
+├── main.py                    # Punto de entrada principal (actualizado)
+├── models/
+│   ├── __init__.py
+│   ├── user.py                # Modelo de usuario (actualizado)
+│   ├── product.py             # Modelo de producto
+│   └── sale.py                # Modelo de ventas
+├── routes/
+│   ├── __init__.py
+│   ├── auth.py                # Nuevo: Rutas de autenticación
+│   ├── users.py               # Nuevo: Gestión de usuarios
+│   ├── products.py            # Existente
+│   ├── sales.py               # Existente
+│   ├── purchases.py           # Existente
+│   └── inventory.py           # Existente
+├── database.py                # Conexión a MongoDB
+frontend/
+└── templates/
+    ├── home.html              # Página de inicio (nueva)
+    ├── login.html             # Página de login (nueva)
+    ├── admin_dashboard.html   # Dashboard de admin
+    ├── vendedor_dashboard.html # Dashboard de vendedor
+    ├── cliente_dashboard.html # Dashboard de cliente
+    ├── dashboard.html         # Existente
+    ├── registro_productos.html # Existente
+    ├── ventas.html            # Existente
+    ├── compras.html           # Existente
+    ├── inventario.html        # Existente
+    └── 404.html               # Existente
 
 
 uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
