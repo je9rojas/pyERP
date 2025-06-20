@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración - pyERP</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Font Awesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --light: #ecf0f1;
+            --dark: #34495e;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .navbar {
+            background-color: var(--primary);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .sidebar {
+            background-color: var(--dark);
+            color: white;
+            height: calc(100vh - 56px);
+            position: fixed;
+            top: 56px;
+            width: 250px;
+            padding-top: 20px;
+            transition: all 0.3s;
+        }
+        
+        .main-content {
+            margin-left: 250px;
+            padding: 20px;
+            margin-top: 56px;
+            transition: all 0.3s;
+        }
+        
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 12px 20px;
+            border-left: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left: 3px solid var(--secondary);
+        }
+        
+        .sidebar .nav-link i {
+            width: 24px;
+            text-align: center;
+            margin-right: 10px;
+        }
+        
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            border: none;
+            transition: transform 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .metric-card {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .metric-card i {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+        }
+        
+        .metric-card .number {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+        
+        .metric-card .title {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #6c757d;
+        }
+        
+        .bg-primary-light {
+            background-color: rgba(52, 152, 219, 0.1);
+            color: var(--primary);
+        }
+        
+        .bg-success-light {
+            background-color: rgba(46, 204, 113, 0.1);
+            color: var(--success);
+        }
+        
+        .bg-warning-light {
+            background-color: rgba(243, 156, 18, 0.1);
+            color: var(--warning);
+        }
+        
+        .bg-danger-light {
+            background-color: rgba(231, 76, 60, 0.1);
+            color: var(--danger);
+        }
+        
+        .chart-container {
+            height: 300px;
+            position: relative;
+        }
+        
+        .recent-table {
+            font-size: 0.9rem;
+        }
+        
+        .recent-table .badge {
+            font-weight: normal;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 70px;
+                overflow: hidden;
+            }
+            
+            .sidebar .nav-link span {
+                display: none;
+            }
+            
+            .sidebar .nav-link i {
+                margin-right: 0;
+            }
+            
+            .main-content {
+                margin-left: 70px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Barra de navegación superior -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-cubes me-2"></i>pyERP
+            </a>
+            
+            <div class="d-flex align-items-center">
+                <div class="dropdown me-3">
+                    <a href="#" class="text-white dropdown-toggle" id="notificationsDropdown" data-bs-toggle="dropdown">
+                        <i class="fas fa-bell"></i>
+                        <span class="badge bg-danger position-absolute top-0 start-100 translate-middle p-1">3</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-end">
+                        <h6 class="dropdown-header">Notificaciones</h6>
+                        <a class="dropdown-item" href="#">
+                            <div class="d-flex">
+                                <div class="me-3">
+                                    <i class="fas fa-shopping-cart text-primary"></i>
+                                </div>
+                                <div>
+                                    <div>Nueva venta registrada</div>
+                                    <small class="text-muted">Hace 5 minutos</small>
+                                </div>
+                            </div>
+                        </a>
+                        <a class="dropdown-item" href="#">
+                            <div class="d-flex">
+                                <div class="me-3">
+                                    <i class="fas fa-user text-success"></i>
+                                </div>
+                                <div>
+                                    <div>Nuevo usuario registrado</div>
+                                    <small class="text-muted">Hace 2 horas</small>
+                                </div>
+                            </div>
+                        </a>
+                        <a class="dropdown-item" href="#">
+                            <div class="d-flex">
+                                <div class="me-3">
+                                    <i class="fas fa-exclamation-triangle text-warning"></i>
+                                </div>
+                                <div>
+                                    <div>Producto con bajo stock</div>
+                                    <small class="text-muted">Hace 1 día</small>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="dropdown">
+                    <a href="#" class="text-white dropdown-toggle d-flex align-items-center" id="userDropdown" data-bs-toggle="dropdown">
+                        <img src="https://ui-avatars.com/api/?name=Admin&background=3498db&color=fff" class="user-avatar me-2">
+                        <span>Administrador</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-end">
+                        <a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i> Mi perfil</a>
+                        <a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i> Configuración</a>
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item" href="/logout"><i class="fas fa-sign-out-alt me-2"></i> Cerrar sesión</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link active" href="/admin/dashboard">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/products">
+                    <i class="fas fa-box"></i>
+                    <span>Productos</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/sales">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>Ventas</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/purchases">
+                    <i class="fas fa-shopping-basket"></i>
+                    <span>Compras</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/inventory">
+                    <i class="fas fa-warehouse"></i>
+                    <span>Inventario</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/users">
+                    <i class="fas fa-users"></i>
+                    <span>Usuarios</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/reports">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Reportes</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/settings">
+                    <i class="fas fa-cog"></i>
+                    <span>Configuración</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Contenido principal -->
+    <div class="main-content">
+        <div class="container-fluid">
+            <!-- Encabezado -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">Panel de Administración</h1>
+                <div>
+                    <button class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i> Nuevo Reporte
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Métricas -->
+            <div class="row">
+                <div class="col-xl-3 col-md-6">
+                    <div class="card bg-primary-light">
+                        <div class="card-body metric-card">
+                            <i class="fas fa-shopping-cart"></i>
+                            <div class="number">142</div>
+                            <div class="title">Ventas Hoy</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <div class="card bg-success-light">
+                        <div class="card-body metric-card">
+                            <i class="fas fa-dollar-sign"></i>
+                            <div class="number">$24,580</div>
+                            <div class="title">Ingresos Hoy</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <div class="card bg-warning-light">
+                        <div class="card-body metric-card">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <div class="number">8</div>
+                            <div class="title">Productos Bajo Stock</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <div class="card bg-danger-light">
+                        <div class="card-body metric-card">
+                            <i class="fas fa-users"></i>
+                            <div class="number">42</div>
+                            <div class="title">Usuarios Activos</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Gráficos y tablas -->
+            <div class="row mt-4">
+                <!-- Gráfico de ventas -->
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Ventas Mensuales</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="salesChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Productos más vendidos -->
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Productos Populares</h5>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-0">Laptop HP EliteBook</h6>
+                                        <small class="text-muted">Categoría: Computadoras</small>
+                                    </div>
+                                    <span class="badge bg-primary">142 ventas</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-0">Monitor Dell 24"</h6>
+                                        <small class="text-muted">Categoría: Monitores</small>
+                                    </div>
+                                    <span class="badge bg-primary">98 ventas</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-0">Teclado Mecánico</h6>
+                                        <small class="text-muted">Categoría: Periféricos</small>
+                                    </div>
+                                    <span class="badge bg-primary">76 ventas</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-0">Mouse Inalámbrico</h6>
+                                        <small class="text-muted">Categoría: Periféricos</small>
+                                    </div>
+                                    <span class="badge bg-primary">65 ventas</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-0">Impresora Laser</h6>
+                                        <small class="text-muted">Categoría: Impresoras</small>
+                                    </div>
+                                    <span class="badge bg-primary">52 ventas</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tablas de datos recientes -->
+            <div class="row mt-4">
+                <!-- Últimas ventas -->
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Últimas Ventas</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover recent-table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Cliente</th>
+                                            <th>Total</th>
+                                            <th>Estado</th>
+                                            <th>Fecha</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>#V-1001</td>
+                                            <td>Juan Pérez</td>
+                                            <td>$1,250</td>
+                                            <td><span class="badge bg-success">Completado</span></td>
+                                            <td>Hoy 10:30</td>
+                                        </tr>
+                                        <tr>
+                                            <td>#V-1002</td>
+                                            <td>María González</td>
+                                            <td>$850</td>
+                                            <td><span class="badge bg-success">Completado</span></td>
+                                            <td>Hoy 09:15</td>
+                                        </tr>
+                                        <tr>
+                                            <td>#V-1003</td>
+                                            <td>Empresa XYZ</td>
+                                            <td>$3,420</td>
+                                            <td><span class="badge bg-warning">Pendiente</span></td>
+                                            <td>Ayer 16:45</td>
+                                        </tr>
+                                        <tr>
+                                            <td>#V-1004</td>
+                                            <td>Carlos Rodríguez</td>
+                                            <td>$520</td>
+                                            <td><span class="badge bg-success">Completado</span></td>
+                                            <td>Ayer 14:20</td>
+                                        </tr>
+                                        <tr>
+                                            <td>#V-1005</td>
+                                            <td>Tienda ABC</td>
+                                            <td>$2,100</td>
+                                            <td><span class="badge bg-danger">Cancelado</span></td>
+                                            <td>20 Jun, 2023</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Últimas actividades -->
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Actividad Reciente</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="timeline">
+                                <div class="timeline-item">
+                                    <div class="timeline-point"></div>
+                                    <div class="timeline-content">
+                                        <div class="d-flex">
+                                            <img src="https://ui-avatars.com/api/?name=Admin&background=3498db&color=fff" class="user-avatar me-3">
+                                            <div>
+                                                <h6 class="mb-0">Administrador</h6>
+                                                <p class="mb-0">Actualizó el precio del producto "Monitor Samsung 27"</p>
+                                                <small class="text-muted">Hace 15 minutos</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-point bg-success"></div>
+                                    <div class="timeline-content">
+                                        <div class="d-flex">
+                                            <img src="https://ui-avatars.com/api/?name=Vendedor&background=2ecc71&color=fff" class="user-avatar me-3">
+                                            <div>
+                                                <h6 class="mb-0">Vendedor1</h6>
+                                                <p class="mb-0">Registró una nueva venta #V-1001 por $1,250</p>
+                                                <small class="text-muted">Hace 1 hora</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-point bg-warning"></div>
+                                    <div class="timeline-content">
+                                        <div class="d-flex">
+                                            <img src="https://ui-avatars.com/api/?name=Almacen&background=f39c12&color=fff" class="user-avatar me-3">
+                                            <div>
+                                                <h6 class="mb-0">Almacenista</h6>
+                                                <p class="mb-0">Actualizó el stock del producto "Teclado Mecánico"</p>
+                                                <small class="text-muted">Hace 3 horas</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-point bg-info"></div>
+                                    <div class="timeline-content">
+                                        <div class="d-flex">
+                                            <img src="https://ui-avatars.com/api/?name=Admin&background=3498db&color=fff" class="user-avatar me-3">
+                                            <div>
+                                                <h6 class="mb-0">Administrador</h6>
+                                                <p class="mb-0">Agregó nuevo usuario "vendedor2" al sistema</p>
+                                                <small class="text-muted">Ayer 17:30</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Gráfico de ventas
+        const salesCtx = document.getElementById('salesChart').getContext('2d');
+        const salesChart = new Chart(salesCtx, {
+            type: 'line',
+            data: {
+                labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+                datasets: [{
+                    label: 'Ventas 2023',
+                    data: [12000, 19000, 15000, 18000, 22000, 19500, 23000, 25000, 21000, 24000, 26000, 30000],
+                    borderColor: '#3498db',
+                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                    borderWidth: 3,
+                    pointBackgroundColor: '#fff',
+                    pointBorderWidth: 3,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            drawBorder: false
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value.toLocaleString();
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
