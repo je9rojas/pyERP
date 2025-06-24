@@ -1,0 +1,15 @@
+<!-- frontend/templates/components/user_card.html -->
+{% macro render(user) %}
+<div class="user-card 
+            {% if user.role == 'admin' %}user-card--admin{% endif %}
+            {% if user.role == 'vendedor' %}user-card--vendedor{% endif %}
+            {% if not user.active %}user-card--inactive{% endif %}">
+    <img src="{{ user.avatar }}" 
+         alt="{{ user.name }}" 
+         class="user-card__avatar">
+    <div class="user-card__info">
+        <div class="user-card__name">{{ user.name }}</div>
+        <div class="user-card__id">ID: {{ user.id }}</div>
+    </div>
+</div>
+{% endmacro %}

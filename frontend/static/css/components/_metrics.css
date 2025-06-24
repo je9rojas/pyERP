@@ -1,0 +1,47 @@
+.card--metric {
+    text-align: center;
+    padding: 20px;
+    transition: transform 0.3s;
+}
+
+.card--metric:hover {
+    transform: translateY(-5px);
+}
+
+.card__icon {
+    font-size: 2.5rem;
+    margin-bottom: 15px;
+}
+
+.card__number {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 10px 0;
+}
+
+.card__title {
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Colores de tarjetas métricas */
+.card--primary {
+    background-color: rgba(52, 152, 219, 0.1);
+    color: var(--primary);
+}
+
+.card--success {
+    background-color: rgba(46, 204, 113, 0.1);
+    color: var(--success);
+}
+
+.card--warning {
+    background-color: rgba(243, 156, 18, 0.1);
+    color: var(--warning);
+}
+
+.card--danger {
+    background-color: rgba(231, 76, 60, 0.1);
+    color: var(--danger);
+}

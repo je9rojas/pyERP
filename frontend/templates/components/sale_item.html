@@ -1,0 +1,14 @@
+<tr>
+    <td>#{{ id }}</td>
+    <td>{{ client }}</td>
+    <td>{{ total }}</td>
+    <td>
+        <span class="badge 
+            {% if status == 'Completado' %}bg-success
+            {% elif status == 'Pendiente' %}bg-warning
+            {% else %}bg-danger{% endif %}">
+            {{ status }}
+        </span>
+    </td>
+    <td>{{ date }}</td>
+</tr>

@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Vendedor - pyERP{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Panel de Vendedor</h1>
+        <div>
+            <button class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i> Nueva Venta
+            </button>
+        </div>
+    </div>
+    
+    <!-- Métricas específicas para vendedor -->
+    <div class="row">
+        <div class="col-xl-3 col-md-6 mb-4">
+            {% include "components/metric_card.html" with 
+                icon="fa-shopping-cart"
+                value=metricas.ventas_hoy
+                title="Ventas Hoy"
+                color="primary"
+            %}
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            {% include "components/metric_card.html" with 
+                icon="fa-dollar-sign"
+                value=metricas.comisiones_hoy
+                title="Comisiones Hoy"
+                color="success"
+                prefix="$"
+            %}
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            {% include "components/metric_card.html" with 
+                icon="fa-users"
+                value=metricas.clientes_atendidos
+                title="Clientes Atendidos"
+                color="info"
+            %}
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            {% include "components/metric_card.html" with 
+                icon="fa-bullseye"
+                value=metricas.objetivo_cumplido
+                title="Objetivo Cumplido"
+                color="warning"
+                suffix="%"
+            %}
+        </div>
+    </div>
+    
+    <!-- Sección de ventas rápidas -->
+    <div class="row mt-4">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Ventas Rápidas</h5>
+                </div>
+                <div class="card-body">
+                    <form>
+                        <!-- Formulario para crear venta rápida -->
+                        <div class="mb-3">
+                            <label class="form-label">Seleccionar Cliente</label>
+                            <select class="form-select">
+                                <option value="">Cliente existente</option>
+                                {% for cliente in clientes_recientes %}
+                                <option value="{{ cliente.id }}">{{ cliente.nombre }}</option>
+                                {% endfor %}
+                                <option value="nuevo">+ Nuevo cliente</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Agregar Productos</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" placeholder="Buscar producto...">
+                                <button class="btn btn-outline-secondary" type="button">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <button type="button" class="btn btn-primary">Iniciar Venta</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Clientes frecuentes -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Clientes Frecuentes</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        {% for cliente in clientes_frecuentes %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0">{{ cliente.nombre }}</h6>
+                                <small class="text-muted">{{ cliente.ultima_compra|default("Nunca", true) }}</small>
+                            </div>
+                            <span class="badge bg-primary">{{ cliente.ventas }} ventas</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Ventas recientes -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Mis Ventas Recientes</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID Venta</th>
+                                    <th>Cliente</th>
+                                    <th>Total</th>
+                                    <th>Estado</th>
+                                    <th>Fecha</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for venta in ventas_recientes %}
+                                <tr>
+                                    <td>#{{ venta.id }}</td>
+                                    <td>{{ venta.cliente_nombre }}</td>
+                                    <td>${{ venta.total }}</td>
+                                    <td>
+                                        <span class="badge bg-success">Completada</span>
+                                    </td>
+                                    <td>{{ venta.fecha }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center">No hay ventas recientes</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

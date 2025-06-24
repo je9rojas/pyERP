@@ -1,5 +1,4 @@
 # 📁 backend/database.py
-
 from motor.motor_asyncio import AsyncIOMotorClient
 from mongoengine import connect as mongoengine_connect
 from dotenv import load_dotenv
@@ -47,14 +46,11 @@ async def connect_to_mongodb():
         logger.info(f"Conexión asíncrona exitosa a MongoDB. Base de datos: {DB_NAME}")
         
         # Conexión síncrona para MongoEngine (modelos)
-        # SOLUCIÓN CORRECTA: Usar solo la URI sin parámetros adicionales
-        mongoengine_connect(
-            host=MONGO_URI,
-            alias='default'
-        )
+        # IMPORTANTE: Usar connect() en lugar de mongoengine_connect
+        from mongoengine import connect
+        connect(host=MONGO_URI, alias='default')
         
         logger.info("Conexión síncrona para MongoEngine establecida")
-        
         return True
     except Exception as e:
         logger.error(f"Error de conexión a MongoDB: {str(e)}")

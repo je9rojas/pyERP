@@ -1,0 +1,49 @@
+.timeline {
+    position: relative;
+    padding-left: 40px;
+}
+
+.timeline__item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline__point {
+    position: absolute;
+    left: -20px;
+    top: 5px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.timeline__point--admin {
+    background-color: var(--primary);
+}
+
+.timeline__point--vendedor {
+    background-color: var(--success);
+}
+
+.timeline__point--almacen {
+    background-color: var(--warning);
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.user-avatar--admin {
+    background-color: var(--primary);
+}
+
+.user-avatar--vendedor {
+    background-color: var(--success);
+}
+
+.user-avatar--almacen {
+    background-color: var(--warning);
+}

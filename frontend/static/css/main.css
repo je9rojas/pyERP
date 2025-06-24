@@ -1,0 +1,22 @@
+/* Punto de entrada principal para estilos */
+@import 'base/variables';
+@import 'base/reset';
+@import 'base/typography';
+
+@import 'layout/grid';
+@import 'layout/navbar';
+@import 'layout/sidebar';
+@import 'layout/main-content';
+
+@import 'components/buttons';
+@import 'components/cards';
+@import 'components/badges';
+@import 'components/tables';
+@import 'components/forms';
+@import 'components/modals';
+@import 'components/user-card';
+@import 'components/role-badge';
+@import 'components/status-indicator';
+
+@import 'utilities/mixins';
+@import 'utilities/helpers';

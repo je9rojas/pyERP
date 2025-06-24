@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% import "components/user_card.html" as user_card %}
+
+{% block title %}Gestión de Usuarios - pyERP{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Gestión de Usuarios</h1>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newUserModal">
+            <i class="fas fa-user-plus me-1"></i> Nuevo Usuario
+        </button>
+    </div>
+    
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <!-- Campos de filtro... -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Estadísticas -->
+    <div class="row mb-4">
+        <!-- Tarjetas de estadísticas... -->
+    </div>
+    
+    <!-- Tabla de usuarios -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">Listado de Usuarios</h5>
+            <!-- Botones de acción... -->
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Usuario</th>
+                            <th>Email</th>
+                            <th>Rol</th>
+                            <th>Teléfono</th>
+                            <th>Último Acceso</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>
+                                {{ user_card.render(user) }}
+                            </td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                <!-- Implementar componente role_badge -->
+                            </td>
+                            <td>{{ user.phone }}</td>
+                            <td>{{ user.last_login }}</td>
+                            <td>
+                                <!-- Implementar componente status_indicator -->
+                            </td>
+                            <td>
+                                <!-- Botones de acción -->
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Paginación -->
+            {% include "components/pagination.html" %}
+        </div>
+    </div>
+</div>
+
+{% include "modals/usuario_modal.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        $('select[multiple]').select2();
+        
+        $('.btn-action').on('click', function() {
+            const action = $(this).find('i').attr('class');
+            
+            if (action.includes('ban')) {
+                alert('Usuario desactivado con éxito');
+            } else if (action.includes('check')) {
+                alert('Usuario activado con éxito');
+            } else if (action.includes('edit')) {
+                $('#newUserModal .modal-title').text('Editar Usuario');
+                new bootstrap.Modal($('#newUserModal')[0]).show();
+            }
+        });
+    });
+</script>
+{% endblock %}

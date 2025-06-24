@@ -1,0 +1,54 @@
+/* frontend/static/css/components/_user-card.css */
+.user-card {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.user-card__avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 1rem;
+    border: 2px solid var(--light);
+}
+
+.user-card__info {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-card__name {
+    font-weight: 600;
+    margin-bottom: 0.1rem;
+    color: var(--dark);
+}
+
+.user-card__id {
+    font-size: 0.8rem;
+    color: var(--secondary);
+}
+
+/* Variantes */
+.user-card--admin {
+    border-left: 3px solid var(--secondary);
+    background-color: rgba(52, 152, 219, 0.05);
+}
+
+.user-card--vendedor {
+    border-left: 3px solid var(--success);
+    background-color: rgba(46, 204, 113, 0.05);
+}
+
+.user-card--inactive {
+    opacity: 0.6;
+    filter: grayscale(70%);
+}
+
+/* Estados */
+.user-card:hover {
+    background-color: rgba(52, 152, 219, 0.1);
+    transform: translateY(-2px);
+}

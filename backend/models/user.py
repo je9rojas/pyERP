@@ -1,12 +1,19 @@
+# backend/models/user.py
 from mongoengine import Document, EmbeddedDocument, EmbeddedDocumentField
 from mongoengine.fields import (
     StringField, 
     DateTimeField, 
     IntField, 
-    BooleanField
+    BooleanField,
+    URLField,
+    EmailField
 )
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
+import uuid
+import logging
+
+logger = logging.getLogger("uvicorn")
 
 class Direccion(EmbeddedDocument):
     calle = StringField(required=True)
@@ -16,13 +23,18 @@ class Direccion(EmbeddedDocument):
     pais = StringField(default='México')
 
 class Usuario(Document):
-    email = StringField(required=True, unique=True)
+    meta = {'collection': 'usuarios'}
+    
+    public_id = StringField(default=lambda: str(uuid.uuid4()), unique=True)
+    email = EmailField(required=True, unique=True)
     password = StringField(required=True)
     nombre = StringField(required=True)
+    apellido = StringField()
     rol = StringField(choices=('superadmin', 'admin', 'vendedor', 'cliente'), default='cliente')
     direccion = EmbeddedDocumentField(Direccion)
     telefono = StringField()
-    puntos_acumulados = IntField(default=0)
+    avatar = URLField(default='https://ui-avatars.com/api/?name=Usuario&background=random')
+    ultimo_acceso = DateTimeField(default=datetime.utcnow)
     fecha_registro = DateTimeField(default=datetime.utcnow)
     activo = BooleanField(default=True)
     creado_por = StringField()  # ID del usuario que creó este registro
@@ -32,7 +44,11 @@ class Usuario(Document):
         self.password = generate_password_hash(password)
     
     def check_password(self, password):
-        return check_password_hash(self.password, password)
+        try:
+            return check_password_hash(self.password, password)
+        except Exception as e:
+            logger.error(f"Error verificando contraseña: {str(e)}")
+            return False
     
     # Métodos para verificar roles
     def is_superadmin(self):
@@ -46,15 +62,38 @@ class Usuario(Document):
     
     def is_cliente(self):
         return self.rol == 'cliente'
+    
+    def get_avatar_url(self):
+        if self.avatar:
+            return self.avatar
+        return f"https://ui-avatars.com/api/?name={self.nombre.split()[0]}+{self.apellido or ''}&background=random"
+    
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "public_id": self.public_id,
+            "nombre": self.nombre,
+            "email": self.email,
+            "rol": self.rol,
+            "telefono": self.telefono,
+            "avatar": self.get_avatar_url(),
+            "ultimo_acceso": self.ultimo_acceso.isoformat(),
+            "activo": self.activo
+        }
 
 # Crear superadmin inicial si no existe
 def crear_superadmin_inicial():
     if not Usuario.objects(rol='superadmin').first():
+        logger.info("Creando superadmin inicial...")
         superadmin = Usuario(
             email='superadmin@empresa.com',
-            nombre='Super Administrador',
+            nombre='Super',
+            apellido='Administrador',
             rol='superadmin',
             creado_por='sistema'
         )
         superadmin.set_password('password_seguro')  # Cambiar en producción!
         superadmin.save()
+        logger.info(f"Superadmin creado con ID: {superadmin.id}")
+    else:
+        logger.info("Superadmin ya existe, omitiendo creación")

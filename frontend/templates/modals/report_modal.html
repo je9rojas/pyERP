@@ -1,0 +1,60 @@
+<div class="modal fade" id="reportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Generar Nuevo Reporte</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="mb-3">
+                        <label class="form-label">Tipo de Reporte</label>
+                        <select class="form-select" required>
+                            <option value="">Seleccionar tipo</option>
+                            <option value="ventas">Reporte de Ventas</option>
+                            <option value="inventario">Reporte de Inventario</option>
+                            <option value="usuarios">Reporte de Usuarios</option>
+                            <option value="compras">Reporte de Compras</option>
+                        </select>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Fecha Inicio</label>
+                            <input type="date" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Fecha Fin</label>
+                            <input type="date" class="form-control" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Formato</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="format" id="pdfFormat" checked>
+                            <label class="form-check-label" for="pdfFormat">PDF</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="format" id="excelFormat">
+                            <label class="form-check-label" for="excelFormat">Excel</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="format" id="csvFormat">
+                            <label class="form-check-label" for="csvFormat">CSV</label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="sendEmail">
+                        <label class="form-check-label" for="sendEmail">Enviar por correo electrónico</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary">Generar Reporte</button>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Usuarios - pyERP{% endblock %}
+
+{% block content %}
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Gestión de Usuarios</h1>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newUserModal">
+            <i class="fas fa-user-plus me-1"></i> Nuevo Usuario
+        </button>
+    </div>
+    
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <input type="text" class="form-control" placeholder="Buscar por nombre...">
+                </div>
+                <div class="col-md-3">
+                    <input type="text" class="form-control" placeholder="Buscar por email...">
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select">
+                        <option value="">Todos los roles</option>
+                        <option value="admin">Administrador</option>
+                        <option value="vendedor">Vendedor</option>
+                        <option value="cliente">Cliente</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select">
+                        <option value="">Todos los estados</option>
+                        <option value="active">Activo</option>
+                        <option value="inactive">Inactivo</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tabla de usuarios -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">Listado de Usuarios</h5>
+            <div>
+                <button class="btn btn-sm btn-outline-secondary me-2">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-download"></i> Exportar
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <!-- Cabecera y contenido de la tabla -->
+                </table>
+            </div>
+            
+            <!-- Paginación -->
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-end">
+                    <!-- Elementos de paginación -->
+                </ul>
+            </nav>
+        </div>
+    </div>
+    
+    {% include 'modals/usuario_modal.html' %}
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        // Inicializar select2
+        $(document).ready(function() {
+            $('select[multiple]').select2({
+                placeholder: "Seleccione permisos",
+                allowClear: true
+            });
+        });
+        
+        // Manejar acciones de usuario
+        document.querySelectorAll('.btn-action').forEach(button => {
+            button.addEventListener('click', function() {
+                const action = this.querySelector('i').className;
+                
+                if (action.includes('ban')) {
+                    alert('Usuario desactivado con éxito');
+                } else if (action.includes('check')) {
+                    alert('Usuario activado con éxito');
+                } else if (action.includes('edit')) {
+                    document.getElementById('newUserModal').querySelector('.modal-title').textContent = 'Editar Usuario';
+                    new bootstrap.Modal(document.getElementById('newUserModal')).show();
+                }
+            });
+        });
+    </script>
+{% endblock %}

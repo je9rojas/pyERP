@@ -1,4 +1,4 @@
-# models/sale.py
+# backend/models/sale.py
 
 from mongoengine import Document, EmbeddedDocument, EmbeddedDocumentField, EmbeddedDocumentListField
 from mongoengine.fields import (

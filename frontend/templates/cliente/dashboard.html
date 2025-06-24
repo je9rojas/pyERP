@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Cliente - pyERP{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Panel de Cliente</h1>
+        <div>
+            <button class="btn btn-primary">
+                <i class="fas fa-shopping-cart me-1"></i> Nuevo Pedido
+            </button>
+        </div>
+    </div>
+    
+    <!-- Métricas para cliente -->
+    <div class="row">
+        <div class="col-xl-3 col-md-6 mb-4">
+            {% include "components/metric_card.html" with 
+                icon="fa-clock"
+                value=datos.pedidos_pendientes
+                title="Pedidos Pendientes"
+                color="warning"
+            %}
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            {% include "components/metric_card.html" with 
+                icon="fa-check-circle"
+                value=datos.pedidos_completados
+                title="Pedidos Completados"
+                color="success"
+            %}
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            {% include "components/metric_card.html" with 
+                icon="fa-money-bill-wave"
+                value=datos.saldo_pendiente
+                title="Saldo Pendiente"
+                color="danger"
+                prefix="$"
+            %}
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            {% include "components/metric_card.html" with 
+                icon="fa-percentage"
+                value=descuento
+                title="Descuento Actual"
+                color="info"
+                suffix="%"
+            %}
+        </div>
+    </div>
+    
+    <!-- Últimos pedidos -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Mis Últimos Pedidos</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID Pedido</th>
+                                    <th>Fecha</th>
+                                    <th>Total</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for pedido in datos.ultimos_pedidos %}
+                                <tr>
+                                    <td>#{{ pedido.id }}</td>
+                                    <td>{{ pedido.fecha }}</td>
+                                    <td>${{ pedido.total }}</td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if pedido.estado == 'Entregado' or pedido.estado == 'completado' %}bg-success
+                                            {% elif pedido.estado == 'En proceso' or pedido.estado == 'pendiente' %}bg-warning
+                                            {% else %}bg-danger{% endif %}">
+                                            {{ pedido.estado }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i> Ver
+                                        </button>
+                                        {% if pedido.estado == 'pendiente' %}
+                                        <button class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-times"></i> Cancelar
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center">No hay pedidos recientes</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Productos recomendados -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Productos Recomendados</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for producto in productos_recomendados %}
+                        <div class="col-md-3 mb-3">
+                            <div class="card h-100">
+                                <img src="{{ producto.imagen }}" class="card-img-top" alt="{{ producto.nombre }}">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ producto.nombre }}</h6>
+                                    <p class="card-text">{{ producto.descripcion|truncate(100) }}</p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="h5">${{ producto.precio }}</span>
+                                        <button class="btn btn-sm btn-primary">
+                                            <i class="fas fa-cart-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
